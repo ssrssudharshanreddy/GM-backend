@@ -18,18 +18,25 @@ export async function login({ email, password }) {
   let expires_in = data.session.expires_in;
 
   if (!role) {
-    const { data: emp } = await adminClient.from('employee_profiles').select('role').eq('id', data.user.id).maybeSingle();
+    const { data: emp, error: empErr } = await adminClient.from('employee_profiles').select('role').eq('id', data.user.id).maybeSingle();
+    if (empErr) throw new Error(`Database error querying employee_profiles: ${empErr.message}`);
+    
     if (emp) role = emp.role;
     else {
-      const { data: cust } = await adminClient.from('customer_profiles').select('id').eq('id', data.user.id).maybeSingle();
+      const { data: cust, error: custErr } = await adminClient.from('customer_profiles').select('id').eq('id', data.user.id).maybeSingle();
+      if (custErr) throw new Error(`Database error querying customer_profiles: ${custErr.message}`);
       if (cust) role = 'CUSTOMER';
     }
 
     if (role) {
-      await adminClient.auth.admin.updateUserById(data.user.id, {
+      const updateRes = await adminClient.auth.admin.updateUserById(data.user.id, {
         app_metadata: { ...data.user.app_metadata, role }
       });
+      if (updateRes.error) throw new Error(`Error updating user app_metadata: ${updateRes.error.message}`);
+      
       const refreshed = await adminClient.auth.refreshSession({ refresh_token });
+      if (refreshed.error) throw new Error(`Error refreshing session: ${refreshed.error.message}`);
+      
       if (refreshed.data?.session) {
         access_token = refreshed.data.session.access_token;
         refresh_token = refreshed.data.session.refresh_token;
