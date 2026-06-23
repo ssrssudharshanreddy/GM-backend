@@ -1,12 +1,19 @@
 import { adminClient } from '../config/supabase.js';
 import { Err } from '../utils/errors.js';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '../config/env.js';
 
 /**
  * Sign in via Supabase Auth (email + password).
  * Returns { access_token, refresh_token, user }.
  */
 export async function login({ email, password }) {
-  const { data, error } = await adminClient.auth.signInWithPassword({ email, password });
+  // Use a per-request client for auth so we don't mutate adminClient's session
+  const authClient = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await authClient.auth.signInWithPassword({ email, password });
   if (error) {
     if (error.message.includes('Invalid login')) throw Err.unauthorized('Invalid email or password');
     throw Err.fromSupabase(error) ?? error;
@@ -34,7 +41,7 @@ export async function login({ email, password }) {
       });
       if (updateRes.error) throw Err.badRequest(`Error updating app_metadata: ${updateRes.error.message}`);
       
-      const refreshed = await adminClient.auth.refreshSession({ refresh_token });
+      const refreshed = await authClient.auth.refreshSession({ refresh_token });
       if (refreshed.error) throw Err.badRequest(`Error refreshing session: ${refreshed.error.message}`);
       
       if (refreshed.data?.session) {
