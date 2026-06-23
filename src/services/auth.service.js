@@ -11,14 +11,41 @@ export async function login({ email, password }) {
     if (error.message.includes('Invalid login')) throw Err.unauthorized('Invalid email or password');
     throw Err.fromSupabase(error) ?? error;
   }
+
+  let role = data.user.app_metadata?.role;
+  let access_token = data.session.access_token;
+  let refresh_token = data.session.refresh_token;
+  let expires_in = data.session.expires_in;
+
+  if (!role) {
+    const { data: emp } = await adminClient.from('employee_profiles').select('role').eq('id', data.user.id).maybeSingle();
+    if (emp) role = emp.role;
+    else {
+      const { data: cust } = await adminClient.from('customer_profiles').select('id').eq('id', data.user.id).maybeSingle();
+      if (cust) role = 'CUSTOMER';
+    }
+
+    if (role) {
+      await adminClient.auth.admin.updateUserById(data.user.id, {
+        app_metadata: { ...data.user.app_metadata, role }
+      });
+      const refreshed = await adminClient.auth.refreshSession({ refresh_token });
+      if (refreshed.data?.session) {
+        access_token = refreshed.data.session.access_token;
+        refresh_token = refreshed.data.session.refresh_token;
+        expires_in = refreshed.data.session.expires_in;
+      }
+    }
+  }
+
   return {
-    access_token:  data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in:    data.session.expires_in,
+    access_token,
+    refresh_token,
+    expires_in,
     user: {
       id:    data.user.id,
       email: data.user.email,
-      role:  data.user.app_metadata?.role,
+      role:  role,
     },
   };
 }
