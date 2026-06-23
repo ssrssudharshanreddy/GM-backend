@@ -19,12 +19,12 @@ export async function login({ email, password }) {
 
   if (!role) {
     const { data: emp, error: empErr } = await adminClient.from('employee_profiles').select('role').eq('id', data.user.id).maybeSingle();
-    if (empErr) throw new Error(`Database error querying employee_profiles: ${empErr.message}`);
+    if (empErr) throw Err.badRequest(`DB error querying employee: ${empErr.message}`);
     
     if (emp) role = emp.role;
     else {
       const { data: cust, error: custErr } = await adminClient.from('customer_profiles').select('id').eq('id', data.user.id).maybeSingle();
-      if (custErr) throw new Error(`Database error querying customer_profiles: ${custErr.message}`);
+      if (custErr) throw Err.badRequest(`DB error querying customer: ${custErr.message}`);
       if (cust) role = 'CUSTOMER';
     }
 
@@ -32,10 +32,10 @@ export async function login({ email, password }) {
       const updateRes = await adminClient.auth.admin.updateUserById(data.user.id, {
         app_metadata: { ...data.user.app_metadata, role }
       });
-      if (updateRes.error) throw new Error(`Error updating user app_metadata: ${updateRes.error.message}`);
+      if (updateRes.error) throw Err.badRequest(`Error updating app_metadata: ${updateRes.error.message}`);
       
       const refreshed = await adminClient.auth.refreshSession({ refresh_token });
-      if (refreshed.error) throw new Error(`Error refreshing session: ${refreshed.error.message}`);
+      if (refreshed.error) throw Err.badRequest(`Error refreshing session: ${refreshed.error.message}`);
       
       if (refreshed.data?.session) {
         access_token = refreshed.data.session.access_token;
