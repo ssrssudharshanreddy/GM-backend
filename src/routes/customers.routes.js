@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { validateBody, validateQuery, validateParams } from '../middleware/validate.js';
 import { authenticate, isCEO, isCRE, isInternal, requireRole } from '../middleware/auth.js';
-import { uploadSingle } from '../middleware/upload.js';
+import { uploadSingle, uploadRegistrationDocs } from '../middleware/upload.js';
 import * as customersController from '../controllers/customers.controller.js';
 import {
   listCustomersSchema, updateCustomerSchema, createApplicationSchema,
@@ -13,8 +13,23 @@ import { authRateLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
+const mapRegistrationKeys = (req, res, next) => {
+  if (req.body) {
+    if (req.body.contact_person_name && !req.body.contact_person) {
+      req.body.contact_person = req.body.contact_person_name;
+    }
+    if (req.body.mobile_number && !req.body.phone) {
+      req.body.phone = req.body.mobile_number;
+    }
+    if (req.body.company_type && !req.body.business_type) {
+      req.body.business_type = req.body.company_type;
+    }
+  }
+  next();
+};
+
 // ─── Public: customer self-registration ──────────────────────────────────────
-router.post('/register', authRateLimiter, validateBody(createApplicationSchema), asyncHandler(customersController.selfRegister));
+router.post('/register', authRateLimiter, uploadRegistrationDocs, mapRegistrationKeys, validateBody(createApplicationSchema), asyncHandler(customersController.selfRegister));
 
 // ─── Protected routes ─────────────────────────────────────────────────────────
 router.use(authenticate);

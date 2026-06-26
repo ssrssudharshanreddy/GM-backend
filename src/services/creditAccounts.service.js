@@ -4,25 +4,77 @@ import { buildPaginationMeta } from '../utils/pagination.js';
 
 export async function list(db, query) {
   const { data, count } = await repo.findAll(db, query);
-  return { accounts: data, pagination: buildPaginationMeta({ page: query.page, limit: query.limit, total: count }) };
+  const mapped = (data || []).map(a => ({
+    ...a,
+    available_credit: Math.max(0, Number(a.credit_limit || 0) - Number(a.used_credit || 0)),
+    outstanding_amount: Number(a.used_credit || 0),
+  }));
+  return { accounts: mapped, pagination: buildPaginationMeta({ page: query.page, limit: query.limit, total: count }) };
 }
 
 export async function getByCustomer(db, customerId) {
   const a = await repo.findByCustomer(db, customerId);
   if (!a) throw Err.notFound('Credit account');
-  return a;
+
+  // Query all invoices for this customer to calculate totals
+  const { data: invoices, error } = await db
+    .from('invoices')
+    .select('total_amount, outstanding_amount, status, due_date')
+    .eq('customer_id', customerId);
+
+  if (error) {
+    console.error('Error fetching invoices for credit calculations:', error);
+  }
+
+  const now = new Date();
+  let totalInvoiced = 0;
+  let totalOutstanding = 0;
+  let overdueAmount = 0;
+
+  if (invoices) {
+    for (const inv of invoices) {
+      totalInvoiced += Number(inv.total_amount || 0);
+      totalOutstanding += Number(inv.outstanding_amount || 0);
+      
+      const isUnpaid = ['UNPAID', 'PARTIALLY_PAID', 'OVERDUE'].includes(inv.status);
+      const isOverdue = isUnpaid && inv.due_date && new Date(inv.due_date) < now;
+      if (isOverdue) {
+        overdueAmount += Number(inv.outstanding_amount || 0);
+      }
+    }
+  }
+
+  return {
+    ...a,
+    available_credit: Math.max(0, Number(a.credit_limit || 0) - Number(a.used_credit || 0)),
+    outstanding_amount: Number(a.used_credit || 0),
+    total_invoiced: totalInvoiced,
+    total_paid: Math.max(0, totalInvoiced - totalOutstanding),
+    overdue_amount: overdueAmount,
+  };
 }
 
 export async function create(db, body, actorId) {
   const existing = await repo.findByCustomer(db, body.customer_id);
   if (existing) throw Err.conflict('Credit account already exists for this customer');
-  return repo.create(db, { ...body, created_by: actorId });
+  const a = await repo.create(db, { ...body, created_by: actorId });
+  return {
+    ...a,
+    available_credit: Math.max(0, Number(a.credit_limit || 0) - Number(a.used_credit || 0)),
+    outstanding_amount: Number(a.used_credit || 0),
+    total_invoiced: 0,
+    total_paid: 0,
+    overdue_amount: 0,
+  };
 }
 
 export async function updateLimit(db, customerId, body, actorId) {
   const account = await repo.findByCustomer(db, customerId);
   if (!account) throw Err.notFound('Credit account');
-  return repo.update(db, customerId, { ...body, updated_by: actorId });
+  const a = await repo.update(db, customerId, { ...body, updated_by: actorId });
+  
+  // Fetch invoices for getByCustomer calculations
+  return getByCustomer(db, customerId);
 }
 
 export async function freeze(db, customerId, reason, actorId) {

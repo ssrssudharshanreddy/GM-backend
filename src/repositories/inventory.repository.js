@@ -1,23 +1,49 @@
 import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
 
+function mapInventoryItem(item) {
+  if (!item) return null;
+  return {
+    ...item,
+    id: item.product_id,
+    allocated_quantity: item.reserved_quantity ?? 0,
+    available_quantity: item.available_quantity ?? (item.quantity - (item.reserved_quantity ?? 0)),
+    gst_percent: item.gst_rate ?? 18
+  };
+}
+
 export async function findAll(db, query) {
   const { from, to } = getPagination(query);
   let q = db
-    .from('inventory')
-    .select('*, products(name, product_code, unit)', { count: 'exact' })
-    .range(from, to)
-    .order('created_at', { ascending: false });
-  if (query.product_id) q = q.eq('product_id', query.product_id);
+    .from('v_inventory_health')
+    .select('*', { count: 'exact' });
+
+  if (query.product_id) {
+    q = q.eq('product_id', query.product_id);
+  }
+  if (query.low_stock === 'true' || query.low_stock === true) {
+    q = q.eq('is_below_threshold', true);
+  }
+  if (query.search) {
+    q = q.or(`product_name.ilike.%${query.search}%,product_code.ilike.%${query.search}%`);
+  }
+
+  q = q.range(from, to)
+       .order('product_name', { ascending: true });
+
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
-  return { data, count };
+  return { data: (data || []).map(mapInventoryItem), count };
 }
 
 export async function findByProduct(db, productId) {
-  const { data, error } = await db.from('inventory').select('*').eq('product_id', productId).maybeSingle();
+  const { data, error } = await db
+    .from('v_inventory_health')
+    .select('*')
+    .eq('product_id', productId)
+    .maybeSingle();
   if (error) throw Err.fromSupabase(error);
-  return data;
+  return mapInventoryItem(data);
 }
 
 export async function findMovements(db, query) {
@@ -62,9 +88,9 @@ export async function updateThreshold(db, productId, threshold) {
 
 export async function findLowStock(db) {
   const { data, error } = await db
-    .from('inventory')
-    .select('*, products(name, product_code, unit)')
-    .filter('quantity', 'lte', db.raw('reorder_threshold'));
+    .from('v_inventory_health')
+    .select('*')
+    .eq('is_below_threshold', true);
   if (error) throw Err.fromSupabase(error);
-  return data;
+  return (data || []).map(mapInventoryItem);
 }

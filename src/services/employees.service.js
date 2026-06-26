@@ -20,16 +20,28 @@ export async function getEmployee(db, id) {
 export async function createEmployee(db, body, actorRole) {
   if (actorRole !== 'CEO') throw Err.forbidden('Only CEO can create employees');
 
+  // Default to a valid initial password if not supplied
+  const initialPassword = body.password || 'GangaMaxx@18';
+
   // 1. Create auth.users entry (Supabase Auth)
   const authUser = await authRepo.createAuthUser({
     email: body.email,
-    password: body.password,
+    password: initialPassword,
     role: body.role,
     full_name: body.full_name,
   });
 
   // 2. Create employee_profiles row (id mirrors auth.users.id)
-  const { password, email, ...profilePayload } = body;
+  const { password, email, department, ...profilePayload } = body;
+  
+  if (department) {
+    profilePayload.department_notes = department;
+  }
+  
+  if (profilePayload.phone === '') {
+    profilePayload.phone = null;
+  }
+
   const profile = await employeesRepo.create(db, {
     id: authUser.id,
     ...profilePayload,
@@ -49,7 +61,15 @@ export async function updateEmployee(db, id, body) {
     });
   }
 
-  return employeesRepo.update(db, id, body);
+  const { department, ...updatePayload } = body;
+  if (department !== undefined) {
+    updatePayload.department_notes = department;
+  }
+  if (updatePayload.phone === '') {
+    updatePayload.phone = null;
+  }
+
+  return employeesRepo.update(db, id, updatePayload);
 }
 
 export async function deleteEmployee(db, id, actorId) {
@@ -59,4 +79,12 @@ export async function deleteEmployee(db, id, actorId) {
 
   await employeesRepo.softDelete(db, id);
   await authRepo.deleteAuthUser(id);
+}
+
+export async function resetPassword(employeeId) {
+  const { adminClient } = await import('../config/supabase.js');
+  const { data: user, error: userErr } = await adminClient.auth.admin.getUserById(employeeId);
+  if (userErr || !user?.user?.email) throw new Error('Employee not found in auth');
+  const { error } = await adminClient.auth.resetPasswordForEmail(user.user.email);
+  if (error) throw error;
 }

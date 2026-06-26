@@ -37,7 +37,7 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
   if (!ret) throw Err.notFound('Return');
 
   const ALLOWED_TRANSITIONS = {
-    REQUESTED:             ['UNDER_REVIEW', 'RETURN_REJECTED'],
+    RETURN_REQUESTED:      ['UNDER_REVIEW', 'RETURN_REJECTED'],
     UNDER_REVIEW:          ['RETURN_APPROVED', 'RETURN_REJECTED'],
     RETURN_APPROVED:       ['PICKUP_SCHEDULED'],
     // PICKUP_SCHEDULED → itself is allowed for rescheduling (date change only)

@@ -24,3 +24,12 @@ export async function getHistory(req, res) {
   const result = await service.getHistory(req.db, req.params.customerId, req.query);
   sendSuccess(res, result.history, 200, { pagination: result.pagination });
 }
+
+export async function getMyCreditAccount(req, res) {
+  sendSuccess(res, await service.getByCustomer(req.db, req.user.id));
+}
+
+export async function getMyCreditHistory(req, res) {
+  const result = await service.getHistory(req.db, req.user.id, req.query);
+  sendSuccess(res, result.history, 200, { pagination: result.pagination });
+}

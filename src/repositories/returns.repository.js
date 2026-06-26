@@ -13,6 +13,20 @@ const RETURN_SELECT = `
   )
 `;
 
+function mapReturn(ret) {
+  if (!ret) return null;
+  const mapped = { ...ret };
+  if (ret.customer_profiles) {
+    mapped.company_name = ret.customer_profiles.company_name;
+    mapped.contact_person = ret.customer_profiles.contact_person;
+    mapped.phone = ret.customer_profiles.phone;
+  }
+  if (ret.orders) {
+    mapped.order_number = ret.orders.order_number;
+  }
+  return mapped;
+}
+
 export async function findAll(db, query) {
   const { from, to } = getPagination(query);
   let q = db
@@ -26,13 +40,13 @@ export async function findAll(db, query) {
   if (query.dateTo)      q = q.lte('created_at', query.dateTo);
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
-  return { data, count };
+  return { data: (data || []).map(mapReturn), count };
 }
 
 export async function findById(db, id) {
   const { data, error } = await db.from('returns').select(RETURN_SELECT).eq('id', id).maybeSingle();
   if (error) throw Err.fromSupabase(error);
-  return data;
+  return mapReturn(data);
 }
 
 export async function create(db, payload) {
@@ -44,7 +58,7 @@ export async function create(db, payload) {
 export async function updateStatus(db, id, payload) {
   const { data, error } = await db.from('returns').update(payload).eq('id', id).select().single();
   if (error) throw Err.fromSupabase(error);
-  return data;
+  return mapReturn(data);
 }
 
 export async function updateItemOutcomes(db, items) {
@@ -61,3 +75,4 @@ export async function updateItemOutcomes(db, items) {
   }
   return results;
 }
+

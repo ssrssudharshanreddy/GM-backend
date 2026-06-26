@@ -11,7 +11,17 @@ router.use(authenticate);
 
 router.get(  '/',    validateQuery(listProductsSchema), asyncHandler(ctrl.list));
 router.get(  '/:id', validateParams(idParamSchema),    asyncHandler(ctrl.getById));
-router.post( '/',    isWE, validateBody(createProductSchema), asyncHandler(ctrl.create));
-router.patch('/:id', isWE, validateParams(idParamSchema), validateBody(updateProductSchema), asyncHandler(ctrl.update));
+router.post( '/',    isWE, (req, res, next) => {
+  if (req.body.gst_percent !== undefined && req.body.gst_rate === undefined) {
+    req.body.gst_rate = req.body.gst_percent;
+  }
+  next();
+}, validateBody(createProductSchema), asyncHandler(ctrl.create));
+router.patch('/:id', isWE, validateParams(idParamSchema), (req, res, next) => {
+  if (req.body.gst_percent !== undefined && req.body.gst_rate === undefined) {
+    req.body.gst_rate = req.body.gst_percent;
+  }
+  next();
+}, validateBody(updateProductSchema), asyncHandler(ctrl.update));
 
 export default router;

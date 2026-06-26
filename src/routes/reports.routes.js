@@ -15,6 +15,27 @@ const dateRangeQuery = z.object({
 const router = Router();
 router.use(authenticate);
 
+// ─── CEO Custom Reports and Dashboards ────────────────────────────────────────
+router.get('/ceo/dashboard',           isCEO, asyncHandler(ctrl.getCEODashboard));
+router.get('/ceo/financials',          isCEO, asyncHandler(ctrl.getCEOFinancials));
+router.get('/ceo/warehouse',           isCEO, asyncHandler(ctrl.getCEOWarehouse));
+router.get('/ceo/:reportType',         isCEO, asyncHandler(ctrl.getCEOReport));
+router.get('/ceo/:reportType/export',  isCEO, asyncHandler(ctrl.exportCEOReport));
+router.get('/alerts',                  isCEO, asyncHandler(ctrl.getAlerts));
+router.get('/audit-logs',              isCEO, asyncHandler(ctrl.getAuditLogs));
+
+// ─── WS / WE / CREM / CRE / AE Specific Dashboards and Summaries ──────────────
+router.get('/ws/dashboard',           requireRole('WS'), asyncHandler(ctrl.getWSDashboard));
+router.get('/we/dashboard',           requireRole('WE'), asyncHandler(ctrl.getWEDashboard));
+router.get('/we/summary',             requireRole('WE'), asyncHandler(ctrl.getWESummary));
+router.get('/crem/dashboard',         requireRole('CREM'), asyncHandler(ctrl.getCREMDashboard));
+router.get('/crem/summary',           requireRole('CREM'), asyncHandler(ctrl.getCREMSummary));
+router.get('/cre/dashboard',          requireRole('CRE'), asyncHandler(ctrl.getCREDashboard));
+router.get('/cre/summary',            requireRole('CRE'), asyncHandler(ctrl.getCRESummary));
+router.get('/ae/dashboard',           requireRole('AE'), asyncHandler(ctrl.getAEDashboard));
+router.get('/ae/outstanding',         requireRole('AE'), asyncHandler(ctrl.getAEOutstanding));
+router.get('/ae/summary',             requireRole('AE'), asyncHandler(ctrl.getAESummary));
+
 // ─── Financial reports — CEO and AE only ──────────────────────────────────────
 // WE and WS have no access to revenue, outstanding, risk, or collection data
 router.get('/sales-summary',        requireRole('CEO','AE','CRE'), validateQuery(dateRangeQuery), asyncHandler(ctrl.salesSummary));

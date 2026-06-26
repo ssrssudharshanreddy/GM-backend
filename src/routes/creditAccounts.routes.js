@@ -15,6 +15,9 @@ router.use(authenticate);
 // ─── Read access: AE/CEO manage; CREM and CRE view (spec: "credit info read-only") ──
 router.get('/',                             isAE, validateQuery(paginationSchema), asyncHandler(ctrl.list));
 
+router.get('/my',                             requireRole('CUSTOMER'), asyncHandler(ctrl.getMyCreditAccount));
+router.get('/my/history',                     requireRole('CUSTOMER'), validateQuery(paginationSchema), asyncHandler(ctrl.getMyCreditHistory));
+
 // CREM may read credit info for assigned customers (RLS enforces assignment scope)
 router.get('/customer/:customerId',         requireRole('CEO','AE','CRE','CREM'), validateParams(customerParam), asyncHandler(ctrl.getByCustomer));
 router.get('/customer/:customerId/history', requireRole('CEO','AE','CRE','CREM'), validateParams(customerParam), validateQuery(paginationSchema), asyncHandler(ctrl.getHistory));

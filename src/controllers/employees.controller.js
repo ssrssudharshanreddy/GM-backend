@@ -25,3 +25,22 @@ export async function remove(req, res) {
   await employeesService.deleteEmployee(req.db, req.params.id, req.user.id);
   sendNoContent(res);
 }
+
+export async function updateStatus(req, res) {
+  const ACTION_MAP = {
+    suspend:    'SUSPENDED',
+    block:      'BLOCKED',
+    reactivate: 'ACTIVE',
+    activate:   'ACTIVE',
+  };
+  const action = req.body.action?.toLowerCase();
+  const status = ACTION_MAP[action] || req.body.status;
+  if (!status) throw new Error('Invalid action or status for employee');
+  const emp = await employeesService.updateEmployee(req.db, req.params.id, { status });
+  sendSuccess(res, emp);
+}
+
+export async function resetPassword(req, res) {
+  await employeesService.resetPassword(req.params.id);
+  sendSuccess(res, { message: 'Password reset email sent.' });
+}

@@ -14,6 +14,8 @@ router.get(  '/',    isInternal, validateQuery(listEmployeesSchema), asyncHandle
 router.get(  '/:id', isInternal, validateParams(idParamSchema),      asyncHandler(employeesController.getById));
 router.post( '/',    isCEO,      validateBody(createEmployeeSchema),  asyncHandler(employeesController.create));
 router.patch('/:id', isCEO,      validateParams(idParamSchema), validateBody(updateEmployeeSchema), asyncHandler(employeesController.update));
+router.patch('/:id/status', isCEO, validateParams(idParamSchema), asyncHandler(employeesController.updateStatus));
+router.post( '/:id/reset-password', isCEO, validateParams(idParamSchema), asyncHandler(employeesController.resetPassword));
 router.delete('/:id', isCEO,    validateParams(idParamSchema),       asyncHandler(employeesController.remove));
 
 export default router;

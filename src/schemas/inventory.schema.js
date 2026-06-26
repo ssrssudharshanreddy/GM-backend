@@ -21,3 +21,11 @@ export const listMovementsSchema = z.object({
   dateFrom:    z.string().optional(),
   dateTo:      z.string().optional(),
 });
+
+export const listInventorySchema = z.object({
+  page:        z.coerce.number().int().min(1).default(1),
+  limit:       z.coerce.number().int().min(1).max(100).default(20),
+  product_id:  z.string().uuid().optional(),
+  low_stock:   z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
+  search:      z.string().max(100).optional(),
+});

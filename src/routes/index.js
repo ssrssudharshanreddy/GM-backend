@@ -25,6 +25,7 @@ import visitsRoutes          from './visits.routes.js';
 import followUpsRoutes       from './followUps.routes.js';
 import customerNotesRoutes   from './customerNotes.routes.js';
 import collectionTasksRoutes from './collectionTasks.routes.js';
+import tasksRoutes           from './tasks.routes.js';
 import notificationsRoutes   from './notifications.routes.js';
 import systemSettingsRoutes  from './systemSettings.routes.js';
 import reportsRoutes         from './reports.routes.js';
@@ -71,6 +72,7 @@ router.use('/visits',              visitsRoutes);
 router.use('/follow-ups',          followUpsRoutes);
 router.use('/customers/:customerId/notes', customerNotesRoutes);
 router.use('/collection-tasks',    collectionTasksRoutes);
+router.use('/tasks',               tasksRoutes);
 
 // ─── Platform ─────────────────────────────────────────────────────────────────
 router.use('/notifications',       notificationsRoutes);

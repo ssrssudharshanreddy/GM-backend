@@ -24,3 +24,15 @@ export const uploadSingle = multer({ storage, fileFilter, limits: { fileSize: MA
 
 /** Multiple files — field name "files", max 5 */
 export const uploadMultiple = multer({ storage, fileFilter, limits: { fileSize: MAX_FILE_SIZE } }).array('files', 5);
+
+/** Registration documents upload */
+export const uploadRegistrationDocs = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+}).fields([
+  { name: 'gst_certificate', maxCount: 1 },
+  { name: 'business_registration', maxCount: 1 },
+  { name: 'address_proof', maxCount: 1 }
+]);
+

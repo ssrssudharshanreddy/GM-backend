@@ -80,8 +80,8 @@ export async function refreshToken(refresh_token) {
 /**
  * Change own password — called with the user's own session client.
  */
-export async function changePassword(db, { new_password }) {
-  const { error } = await db.auth.updateUser({ password: new_password });
+export async function changePassword(userId, { new_password }) {
+  const { error } = await adminClient.auth.admin.updateUserById(userId, { password: new_password });
   if (error) throw Err.fromSupabase(error) ?? error;
 }
 
@@ -105,4 +105,12 @@ export async function getMyProfile(db, userId) {
   if (cust) return { type: 'customer', profile: cust };
 
   throw Err.notFound('Profile');
+}
+
+/**
+ * Initiate password reset.
+ */
+export async function forgotPassword(email) {
+  const { error } = await adminClient.auth.resetPasswordForEmail(email);
+  if (error) throw Err.fromSupabase(error) ?? error;
 }

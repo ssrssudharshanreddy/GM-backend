@@ -12,7 +12,7 @@ export async function refreshToken(req, res) {
 }
 
 export async function changePassword(req, res) {
-  await authService.changePassword(req.db, req.body);
+  await authService.changePassword(req.user.id, req.body);
   sendSuccess(res, { message: 'Password changed successfully' });
 }
 
@@ -25,4 +25,9 @@ export async function logout(_req, res) {
   // JWT is stateless; client must discard the token.
   // Supabase session invalidation is optional via admin API.
   sendSuccess(res, { message: 'Logged out successfully' });
+}
+
+export async function forgotPassword(req, res) {
+  await authService.forgotPassword(req.body.email);
+  sendSuccess(res, { message: 'Password reset email sent successfully' });
 }

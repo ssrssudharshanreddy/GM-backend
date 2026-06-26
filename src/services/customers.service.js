@@ -1,5 +1,6 @@
 import * as customersRepo from '../repositories/customers.repository.js';
 import * as authRepo from '../repositories/auth.repository.js';
+import * as creditAccountsRepo from '../repositories/creditAccounts.repository.js';
 import { adminClient } from '../config/supabase.js';
 import { env } from '../config/env.js';
 import { Err } from '../utils/errors.js';
@@ -49,7 +50,7 @@ export async function updateStatus(db, customerId, status) {
 }
 
 /** Customer self-registers: creates auth user + customer_profile + initial application */
-export async function selfRegister(body) {
+export async function selfRegister(body, files = {}) {
   // Create Supabase Auth user
   const authUser = await authRepo.createAuthUser({
     email: body.email,
@@ -88,10 +89,66 @@ export async function selfRegister(body) {
   }
 
   // Create initial customer_application
-  const { error: appError } = await adminClient
+  const { data: appData, error: appError } = await adminClient
     .from('customer_applications')
-    .insert({ customer_id: authUser.id, status: 'PENDING_CRE_REVIEW', notes: body.notes });
-  if (appError) throw Err.fromSupabase(appError);
+    .insert({ customer_id: authUser.id, status: 'PENDING_CRE_REVIEW', notes: body.notes })
+    .select()
+    .single();
+
+  if (appError) {
+    await authRepo.deleteAuthUser(authUser.id);
+    throw Err.fromSupabase(appError);
+  }
+
+  const applicationId = appData.id;
+
+  // Process document uploads
+  if (files) {
+    const docTypes = {
+      gst_certificate: 'GST_CERTIFICATE',
+      business_registration: 'REGISTRATION_DOC',
+      address_proof: 'ADDRESS_PROOF',
+    };
+    for (const [key, docType] of Object.entries(docTypes)) {
+      const fileArray = files[key];
+      const file = fileArray && fileArray[0];
+      if (file) {
+        const safeFilename = sanitizeFilename(file.originalname);
+        const storagePath = `${authUser.id}/${Date.now()}_${safeFilename}`;
+        
+        // Upload to Supabase Storage
+        const { error: uploadError } = await adminClient.storage
+          .from(env.SUPABASE_STORAGE_BUCKET_DOCS)
+          .upload(storagePath, file.buffer, { contentType: file.mimetype });
+          
+        if (uploadError) {
+          console.error(`Upload failed for ${key}:`, uploadError);
+          if (key === 'gst_certificate') {
+            await authRepo.deleteAuthUser(authUser.id);
+            throw Err.internal('GST Certificate upload failed');
+          }
+          continue;
+        }
+        
+        // Insert into customer_documents
+        const { error: docError } = await adminClient
+          .from('customer_documents')
+          .insert({
+            customer_id: authUser.id,
+            application_id: applicationId,
+            document_type: docType,
+            file_name: safeFilename,
+            file_url: storagePath,
+            file_size_bytes: file.size,
+            file_mime_type: file.mimetype,
+            status: 'PENDING_REVIEW',
+          });
+        if (docError) {
+          console.error(`Database insertion failed for ${key}:`, docError);
+        }
+      }
+    }
+  }
 
   return profile;
 }
@@ -115,12 +172,21 @@ export async function reviewApplication(db, applicationId, body, actorId) {
   const app = await customersRepo.findApplicationById(db, applicationId);
   if (!app) throw Err.notFound('Application');
 
-  const updated = await customersRepo.updateApplication(db, applicationId, {
-    status:      body.status,
-    notes:       body.notes,
-    reviewed_by: actorId,
-    reviewed_at: new Date().toISOString(),
-  });
+  const payload = { status: body.status };
+  
+  if (app.status === 'PENDING_CRE_REVIEW' || app.status === 'ACTION_REQUIRED') {
+    payload.cre_reviewed_by = actorId;
+    payload.cre_reviewed_at = new Date().toISOString();
+    if (body.notes) payload.cre_notes = body.notes;
+    if (body.status === 'REJECTED') payload.rejection_reason = body.notes;
+  } else if (app.status === 'PENDING_ACCOUNTS_REVIEW') {
+    payload.ae_reviewed_by = actorId;
+    payload.ae_reviewed_at = new Date().toISOString();
+    if (body.notes) payload.ae_notes = body.notes;
+    if (body.status === 'REJECTED') payload.rejection_reason = body.notes;
+  }
+
+  const updated = await customersRepo.updateApplication(db, applicationId, payload);
 
   // Sync customer_profiles.status
   const statusMap = {
@@ -134,6 +200,43 @@ export async function reviewApplication(db, applicationId, body, actorId) {
   if (statusMap[body.status]) {
     await customersRepo.update(db, app.customer_id, { status: statusMap[body.status] });
   }
+
+  return updated;
+}
+
+/**
+ * AE: Approve application and create credit account in one step.
+ */
+export async function setupCredit(db, applicationId, body, actorId) {
+  const app = await customersRepo.findApplicationById(db, applicationId);
+  if (!app) throw Err.notFound('Application');
+  if (app.status !== 'PENDING_ACCOUNTS_REVIEW') {
+    throw Err.badRequest('Application is not in PENDING_ACCOUNTS_REVIEW status');
+  }
+
+  // 1. Create credit account
+  const existing = await creditAccountsRepo.findByCustomer(db, app.customer_id);
+  if (!existing) {
+    await creditAccountsRepo.create(db, {
+      customer_id:  app.customer_id,
+      credit_limit: body.credit_limit,
+      credit_days:  body.credit_days,
+      created_by:   actorId,
+    });
+  }
+
+  // 2. Mark application as APPROVED
+  const updated = await customersRepo.updateApplication(db, applicationId, {
+    status:         'APPROVED',
+    ae_reviewed_by: actorId,
+    ae_reviewed_at: new Date().toISOString(),
+    ae_notes:       body.notes || null,
+    activated_by:   actorId,
+    activated_at:   new Date().toISOString(),
+  });
+
+  // 3. Sync customer status to ACTIVE
+  await customersRepo.update(db, app.customer_id, { status: 'ACTIVE' });
 
   return updated;
 }
@@ -155,11 +258,13 @@ export async function uploadDocument(db, customerId, applicationId, file, upload
   return customersRepo.insertDocument(db, {
     customer_id:     customerId,
     application_id:  applicationId,
-    uploaded_by:     uploaderId,
-    storage_path:    storagePath,
+    requested_by:    uploaderId,
+    file_url:        storagePath,
     file_name:       safeFilename,
     file_mime_type:  file.mimetype,
+    file_size_bytes: file.size,
     document_type:   'OTHER',
+    status:          'PENDING_REVIEW',
   });
 }
 
@@ -167,11 +272,15 @@ export async function getDocuments(db, customerId) {
   const docs = await customersRepo.findDocuments(db, customerId);
   // Attach a fresh signed URL to each document record
   return Promise.all(
-    docs.map(async (doc) => ({
-      ...doc,
-      signed_url: doc.storage_path
-        ? await getSignedUrl(env.SUPABASE_STORAGE_BUCKET_DOCS, doc.storage_path)
-        : null,
-    })),
+    docs.map(async (doc) => {
+      const signedUrl = doc.file_url
+        ? await getSignedUrl(env.SUPABASE_STORAGE_BUCKET_DOCS, doc.file_url)
+        : null;
+      return {
+        ...doc,
+        file_url: signedUrl,
+        signed_url: signedUrl,
+      };
+    }),
   );
 }

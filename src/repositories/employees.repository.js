@@ -1,5 +1,26 @@
 import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
+import { adminClient } from '../config/supabase.js';
+
+/**
+ * Fetch emails from auth.users for a list of user IDs.
+ * Returns a Map<id, email>.
+ */
+async function fetchEmailsForIds(ids) {
+  if (!ids || ids.length === 0) return new Map();
+  try {
+    const { data, error } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+    if (error || !data?.users) return new Map();
+    const map = new Map();
+    const idSet = new Set(ids);
+    for (const u of data.users) {
+      if (idSet.has(u.id)) map.set(u.id, u.email);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
 
 export async function findAll(db, query) {
   const { from, to } = getPagination(query);
@@ -16,7 +37,13 @@ export async function findAll(db, query) {
 
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
-  return { data, count };
+
+  // Merge email from auth.users
+  const rows = data || [];
+  const emailMap = await fetchEmailsForIds(rows.map(r => r.id));
+  const enriched = rows.map(r => ({ ...r, email: emailMap.get(r.id) ?? null }));
+
+  return { data: enriched, count };
 }
 
 export async function findById(db, id) {
@@ -27,7 +54,11 @@ export async function findById(db, id) {
     .is('deleted_at', null)
     .maybeSingle();
   if (error) throw Err.fromSupabase(error);
-  return data;
+  if (!data) return null;
+
+  // Merge email from auth.users
+  const emailMap = await fetchEmailsForIds([data.id]);
+  return { ...data, email: emailMap.get(data.id) ?? null };
 }
 
 export async function create(db, payload) {

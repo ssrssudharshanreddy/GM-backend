@@ -22,12 +22,22 @@ export async function assignCrem(req, res) {
 }
 
 export async function updateStatus(req, res) {
-  const customer = await customersService.updateStatus(req.db, req.params.id, req.body.status);
+  const ACTION_MAP = {
+    suspend:    'SUSPENDED',
+    block:      'BLOCKED',
+    reactivate: 'ACTIVE',
+    activate:   'ACTIVE',
+    unblock:    'ACTIVE',
+  };
+  const action = req.body.action?.toLowerCase();
+  const status = ACTION_MAP[action] || req.body.status;
+  if (!status) throw new Error('Invalid action or status');
+  const customer = await customersService.updateStatus(req.db, req.params.id, status);
   sendSuccess(res, customer);
 }
 
 export async function selfRegister(req, res) {
-  const profile = await customersService.selfRegister(req.body);
+  const profile = await customersService.selfRegister(req.body, req.files);
   sendCreated(res, profile);
 }
 
@@ -44,6 +54,11 @@ export async function getApplication(req, res) {
 
 export async function reviewApplication(req, res) {
   const app = await customersService.reviewApplication(req.db, req.params.id, req.body, req.user.id);
+  sendSuccess(res, app);
+}
+
+export async function setupCredit(req, res) {
+  const app = await customersService.setupCredit(req.db, req.params.id, req.body, req.user.id);
   sendSuccess(res, app);
 }
 

@@ -9,7 +9,7 @@ export async function getByProduct(req, res) {
   sendSuccess(res, await service.getByProduct(req.db, req.params.productId));
 }
 export async function adjust(req, res) {
-  sendSuccess(res, await service.adjustInventory(req.db, req.body, req.user.id));
+  sendSuccess(res, await service.adjustInventory(req.db, req.params.productId, req.body, req.user.id));
 }
 export async function updateThreshold(req, res) {
   sendSuccess(res, await service.updateThreshold(req.db, req.params.productId, req.body.reorder_threshold));
