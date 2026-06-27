@@ -22,3 +22,9 @@ export async function update(db, id, body) {
   if (!cat) throw Err.notFound('Category');
   return repo.update(db, id, body);
 }
+
+export async function remove(db, id) {
+  const cat = await repo.findById(db, id);
+  if (!cat) throw Err.notFound('Category');
+  return repo.remove(db, id);
+}

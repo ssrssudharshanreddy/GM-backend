@@ -14,3 +14,7 @@ export async function create(req, res) {
 export async function update(req, res) {
   sendSuccess(res, await service.update(req.db, req.params.id, req.body));
 }
+export async function remove(req, res) {
+  await service.remove(req.db, req.params.id);
+  res.status(204).send();
+}

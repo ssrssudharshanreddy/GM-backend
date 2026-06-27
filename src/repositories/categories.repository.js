@@ -27,3 +27,9 @@ export async function update(db, id, payload) {
   if (error) throw Err.fromSupabase(error);
   return data;
 }
+
+export async function remove(db, id) {
+  const { error } = await db.from('categories').delete().eq('id', id);
+  if (error) throw Err.fromSupabase(error);
+  return true;
+}

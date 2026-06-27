@@ -13,5 +13,6 @@ router.get(  '/',    asyncHandler(ctrl.list));
 router.get(  '/:id', validateParams(idParamSchema), asyncHandler(ctrl.getById));
 router.post( '/',    isWE, validateBody(createCategorySchema), asyncHandler(ctrl.create));
 router.patch('/:id', isWE, validateParams(idParamSchema), validateBody(updateCategorySchema), asyncHandler(ctrl.update));
+router.delete('/:id', isWE, validateParams(idParamSchema), asyncHandler(ctrl.remove));
 
 export default router;

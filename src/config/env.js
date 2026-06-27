@@ -20,6 +20,7 @@ const envSchema = z.object({
   SUPABASE_STORAGE_BUCKET_DOCS: z.string().default('customer-documents'),
   // CORS
   CORS_ORIGINS: z
+  
     .string()
     .default('http://localhost:5173')
     .transform((s) => s.split(',').map((o) => o.trim())),
