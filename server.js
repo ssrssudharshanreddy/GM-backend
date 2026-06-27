@@ -39,6 +39,7 @@ app.get('/health', (_req, res) => {
 
 // All API routes
 app.use('/api', router);
+app.use('/', router); // Support configurations where /api prefix is stripped or omitted
 
 // 404 fallback
 app.use((_req, res) => {
