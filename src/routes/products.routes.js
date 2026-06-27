@@ -16,13 +16,16 @@ router.post( '/',    isWE, (req, res, next) => {
   if (req.body.gst_percent !== undefined && req.body.gst_rate === undefined) {
     req.body.gst_rate = req.body.gst_percent;
   }
-  // Stash initial_quantity before Zod strips it (not a products column)
-  req._initial_quantity = req.body.initial_quantity;
+  // Stash fields not in products table before Zod strips them
+  req._initial_quantity  = req.body.initial_quantity;
+  req._reorder_threshold = req.body.reorder_threshold;
   delete req.body.initial_quantity;
+  delete req.body.reorder_threshold;
   next();
 }, validateBody(createProductSchema), (req, res, next) => {
   // Restore for service layer
-  if (req._initial_quantity !== undefined) req.body.initial_quantity = req._initial_quantity;
+  if (req._initial_quantity  !== undefined) req.body.initial_quantity  = req._initial_quantity;
+  if (req._reorder_threshold !== undefined) req.body.reorder_threshold = req._reorder_threshold;
   next();
 }, asyncHandler(ctrl.create));
 router.patch('/:id', isWE, validateParams(idParamSchema), (req, res, next) => {

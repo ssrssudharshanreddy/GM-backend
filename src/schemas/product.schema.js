@@ -18,7 +18,7 @@ export const createProductSchema = z.object({
   description:  z.string().max(1000).optional().nullable(),
   unit:         z.string().min(1).max(50),
   price:        inrAmountSchema,
-  gst_rate:     z.number().refine((v) => GST_RATES.includes(v), { message: 'Invalid GST rate. Allowed: 0,5,12,18,28' }),
+  gst_rate:     z.number().min(0).max(100),
   is_active:    z.boolean().default(true),
 });
 

@@ -30,7 +30,7 @@ async function generateProductCode(db) {
 }
 
 export async function create(db, body) {
-  const { initial_quantity, ...productData } = body;
+  const { initial_quantity, reorder_threshold, ...productData } = body;
 
   // Auto-generate product code if not provided
   if (!productData.product_code) {
@@ -39,12 +39,13 @@ export async function create(db, body) {
 
   const product = await repo.create(db, productData);
 
-  // If initial quantity provided, seed the inventory record
-  if (initial_quantity && Number(initial_quantity) > 0) {
+  // Seed initial inventory if quantity or threshold provided
+  if ((initial_quantity && Number(initial_quantity) > 0) || reorder_threshold !== undefined) {
     try {
-      await inventoryRepo.upsert(db, product.id, Number(initial_quantity), {
+      await inventoryRepo.upsert(db, product.id, Number(initial_quantity) || 0, {
         adjustment_type: 'INITIAL_STOCK',
         reason: 'Initial stock on product creation',
+        reorder_threshold: reorder_threshold !== undefined ? Number(reorder_threshold) : undefined,
       }, null);
     } catch {
       // Non-fatal: inventory can be set later via Inventory module
