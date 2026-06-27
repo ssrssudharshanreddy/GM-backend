@@ -42,6 +42,10 @@ export const Err = {
     if (error.code === '23514' || error.code === 'P0001') {
       return new AppError(msg, 422, 'CONSTRAINT_VIOLATION');
     }
+    // Foreign key violation
+    if (error.code === '23503') {
+      return new AppError('Cannot delete or update because it is in use by other records.', 409, 'FOREIGN_KEY_VIOLATION');
+    }
     return new AppError(msg, 500, 'DB_ERROR');
   },
 };
