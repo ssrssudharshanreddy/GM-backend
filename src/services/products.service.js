@@ -1,4 +1,5 @@
 import * as repo from '../repositories/products.repository.js';
+import * as inventoryRepo from '../repositories/inventory.repository.js';
 import { Err } from '../utils/errors.js';
 import { buildPaginationMeta } from '../utils/pagination.js';
 
@@ -13,8 +14,44 @@ export async function getById(db, id) {
   return p;
 }
 
+/**
+ * Auto-generate a product code: PRD-XXXXX (5 uppercase alphanumeric chars)
+ * Retries until unique (collision-safe for up to ~3M products).
+ */
+async function generateProductCode(db) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const suffix = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const code = `PRD-${suffix}`;
+    const { data } = await db.from('products').select('id').eq('product_code', code).maybeSingle();
+    if (!data) return code; // unique
+  }
+  throw new Error('Could not generate a unique product code. Please try again.');
+}
+
 export async function create(db, body) {
-  return repo.create(db, body);
+  const { initial_quantity, ...productData } = body;
+
+  // Auto-generate product code if not provided
+  if (!productData.product_code) {
+    productData.product_code = await generateProductCode(db);
+  }
+
+  const product = await repo.create(db, productData);
+
+  // If initial quantity provided, seed the inventory record
+  if (initial_quantity && Number(initial_quantity) > 0) {
+    try {
+      await inventoryRepo.upsert(db, product.id, Number(initial_quantity), {
+        adjustment_type: 'INITIAL_STOCK',
+        reason: 'Initial stock on product creation',
+      }, null);
+    } catch {
+      // Non-fatal: inventory can be set later via Inventory module
+    }
+  }
+
+  return product;
 }
 
 export async function update(db, id, body) {
