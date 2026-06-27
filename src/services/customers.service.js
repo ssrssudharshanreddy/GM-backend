@@ -165,6 +165,22 @@ export async function listApplications(db, query) {
 export async function getApplication(db, id) {
   const app = await customersRepo.findApplicationById(db, id);
   if (!app) throw Err.notFound('Application');
+
+  // Attach signed URLs to embedded documents
+  if (Array.isArray(app.customer_documents) && app.customer_documents.length > 0) {
+    app.documents = await Promise.all(
+      app.customer_documents.map(async (doc) => {
+        const signedUrl = doc.file_url
+          ? await getSignedUrl(env.SUPABASE_STORAGE_BUCKET_DOCS, doc.file_url)
+          : null;
+        return { ...doc, file_url: signedUrl, signed_url: signedUrl };
+      }),
+    );
+  } else {
+    app.documents = app.customer_documents || [];
+  }
+  delete app.customer_documents;
+
   return app;
 }
 
