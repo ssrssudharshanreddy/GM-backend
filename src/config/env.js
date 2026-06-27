@@ -11,10 +11,13 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
   // Storage buckets
-  SUPABASE_STORAGE_BUCKET_DOCS: z.string().default('customer-documents'),
+  SUPABASE_STORAGE_BUCKET_PROFILE: z.string().default('profile-images'),
+  SUPABASE_STORAGE_BUCKET_INVOICES: z.string().default('invoice-pdfs'),
+  SUPABASE_STORAGE_BUCKET_TICKETS: z.string().default('ticket-attachments'),
+  SUPABASE_STORAGE_BUCKET_PRODUCTS: z.string().default('product-images'),
+  SUPABASE_STORAGE_BUCKET_RETURNS: z.string().default('return-proofs'),
   SUPABASE_STORAGE_BUCKET_DELIVERY: z.string().default('delivery-proofs'),
-  SUPABASE_STORAGE_BUCKET_RETURN: z.string().default('return-proofs'),
-
+  SUPABASE_STORAGE_BUCKET_DOCS: z.string().default('customer-documents'),
   // CORS
   CORS_ORIGINS: z
     .string()

@@ -16,10 +16,11 @@ export const createProductSchema = z.object({
   product_code: z.string().min(1).max(50).optional(), // auto-generated if omitted
   name:         z.string().min(1).max(200),
   description:  z.string().max(1000).optional().nullable(),
-  unit:         z.string().min(1).max(50),
-  price:        inrAmountSchema,
-  gst_rate:     z.number().min(0).max(100),
-  is_active:    z.boolean().default(true),
+  unit:         z.enum(['Litre', 'mL', 'Kg', 'Gram', 'Piece', 'Pack', 'Box', 'Carton', 'Bottle', 'Drum', 'Can', 'Pouch / Sachet', 'Bag', 'Dozen']),
+  pack_size:    z.coerce.number().positive(),
+  price:        z.coerce.number().min(0),
+  gst_rate:     z.coerce.number().min(0).max(100),
+  is_active:    z.preprocess(v => v === 'true' || v === true, z.boolean()).default(true),
 });
 
 export const updateProductSchema = createProductSchema.partial().omit({ product_code: true }).strict();
