@@ -3,7 +3,7 @@ import { getPagination } from '../utils/pagination.js';
 
 export async function findAll(db, query) {
   const { from, to } = getPagination(query);
-  let q = db.from('categories').select('*', { count: 'exact' }).range(from, to).order('name');
+  let q = db.from('categories').select('*', { count: 'exact' }).is('deleted_at', null).range(from, to).order('name');
   if (query.is_active !== undefined) q = q.eq('is_active', query.is_active === 'true');
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
@@ -29,7 +29,9 @@ export async function update(db, id, payload) {
 }
 
 export async function remove(db, id) {
-  const { error } = await db.from('categories').delete().eq('id', id);
+  const { error } = await db.from('categories')
+    .update({ is_active: false, deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw Err.fromSupabase(error);
   return true;
 }
