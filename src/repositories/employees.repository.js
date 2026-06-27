@@ -24,7 +24,7 @@ async function fetchEmailsForIds(ids) {
 
 export async function findAll(db, query) {
   const { from, to } = getPagination(query);
-  let q = db
+  let q = adminClient
     .from('employee_profiles')
     .select('*', { count: 'exact' })
     .is('deleted_at', null)
@@ -47,7 +47,7 @@ export async function findAll(db, query) {
 }
 
 export async function findById(db, id) {
-  const { data, error } = await db
+  const { data, error } = await adminClient
     .from('employee_profiles')
     .select('*')
     .eq('id', id)
