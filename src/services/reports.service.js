@@ -755,12 +755,32 @@ export async function getCRESummary(db) {
     sla_compliance: Number(member.sla_compliance_pct || 0) / 100
   }));
 
+  // Calculate Approval Rate from funnel
+  const totalApps = funnel.reduce((acc, curr) => acc + curr.count, 0);
+  const approvedApps = funnel.find(f => f.stage === 'APPROVED')?.count || 0;
+  const approval_rate = totalApps > 0 ? approvedApps / totalApps : 0;
+
+  // Calculate Avg Onboarding Days
+  const { data: approvedAppsData } = await db.from('customer_applications').select('created_at, ae_reviewed_at').eq('status', 'APPROVED').not('ae_reviewed_at', 'is', null);
+  let avg_onboarding_days = 0;
+  if (approvedAppsData && approvedAppsData.length > 0) {
+    const totalDays = approvedAppsData.reduce((acc, app) => {
+      const start = new Date(app.created_at);
+      const end = new Date(app.ae_reviewed_at);
+      return acc + (end - start) / (1000 * 60 * 60 * 24);
+    }, 0);
+    avg_onboarding_days = Math.round(totalDays / approvedAppsData.length);
+  }
+
+  // Calculate Team SLA Compliance
+  const team_sla_compliance = team_performance.length > 0 ? team_performance.reduce((acc, member) => acc + member.sla_compliance, 0) / team_performance.length : 0;
+
   return {
     report: {
       applications_this_month: applications_this_month || 0,
-      approval_rate: 0.85,
-      avg_onboarding_days: 3,
-      team_sla_compliance: 0.95,
+      approval_rate,
+      avg_onboarding_days,
+      team_sla_compliance,
       funnel,
       team_performance,
     }
