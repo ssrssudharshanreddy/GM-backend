@@ -1,5 +1,6 @@
 import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
+import { adminClient } from '../config/supabase.js';
 
 export async function findAll(db, query) {
   const { from, to } = getPagination(query);
@@ -7,7 +8,26 @@ export async function findAll(db, query) {
   if (query.is_active !== undefined) q = q.eq('is_active', query.is_active === 'true');
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
-  return { data, count };
+
+  // Fetch live product count per category using adminClient (bypasses RLS)
+  const categoryIds = (data || []).map(c => c.id);
+  const countMap = {};
+  if (categoryIds.length > 0) {
+    const { data: productRows } = await adminClient
+      .from('products')
+      .select('category_id')
+      .in('category_id', categoryIds)
+      .eq('is_active', true)
+      .is('deleted_at', null);
+    (productRows || []).forEach(p => {
+      countMap[p.category_id] = (countMap[p.category_id] || 0) + 1;
+    });
+  }
+
+  return {
+    data: (data || []).map(cat => ({ ...cat, product_count: countMap[cat.id] ?? 0 })),
+    count,
+  };
 }
 
 export async function findById(db, id) {
