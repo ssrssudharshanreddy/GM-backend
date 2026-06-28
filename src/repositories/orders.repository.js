@@ -58,16 +58,18 @@ function mapOrder(order) {
   // Stringify delivery_address JSONB → readable string (avoids React render error)
   if (order.delivery_address && typeof order.delivery_address === 'object') {
     const a = order.delivery_address;
+    const l1 = a.address_line1 || a.line1;
+    const l2 = a.address_line2 || a.line2;
     const parts = [
-      a.address_line1,
-      a.address_line2,
+      l1,
+      l2,
       a.city,
       a.state,
       a.pincode,
     ].filter(Boolean);
     mapped.delivery_address        = parts.join(', ');
-    mapped.delivery_address_line1  = a.address_line1;
-    mapped.delivery_address_line2  = a.address_line2;
+    mapped.delivery_address_line1  = l1;
+    mapped.delivery_address_line2  = l2;
     mapped.delivery_city           = a.city;
     mapped.delivery_state          = a.state;
     mapped.delivery_pincode        = a.pincode;

@@ -23,7 +23,7 @@ export const createOrderSchema = z.object({
 });
 
 export const updateOrderStatusSchema = z.object({
-  status:           z.enum(ORDER_STATUSES),
+  status:           z.enum(ORDER_STATUSES).optional(),
   assigned_we_id:   z.string().uuid().optional(),
   assigned_ws_id:   z.string().uuid().optional(),
   stock_hold_reason:   z.string().max(500).optional(),

@@ -26,21 +26,24 @@ export async function updateOrderStatus(db, id, body, actorId, actorRole) {
   const order = await repo.findById(db, id);
   if (!order) throw Err.notFound('Order');
 
-  const ALLOWED_TRANSITIONS = {
-    PENDING:     ['CONFIRMED', 'CANCELLED'],
-    CONFIRMED:   ['PROCESSING', 'STOCK_HOLD', 'CANCELLED'],
-    PROCESSING:  ['PACKED', 'STOCK_HOLD', 'CANCELLED'],
-    PACKED:      ['DISPATCHED'],
-    DISPATCHED:  ['DELIVERED'],
-    STOCK_HOLD:  ['PROCESSING', 'CANCELLED'],
-  };
+  const updatePayload = {};
 
-  const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
-  if (!allowed.includes(body.status)) {
-    throw Err.unprocessable(`Cannot transition from ${order.status} to ${body.status}`);
+  if (body.status && body.status !== order.status) {
+    const ALLOWED_TRANSITIONS = {
+      PENDING:     ['CONFIRMED', 'CANCELLED'],
+      CONFIRMED:   ['PROCESSING', 'STOCK_HOLD', 'CANCELLED'],
+      PROCESSING:  ['PACKED', 'STOCK_HOLD', 'CANCELLED'],
+      PACKED:      ['DISPATCHED'],
+      DISPATCHED:  ['DELIVERED'],
+      STOCK_HOLD:  ['PROCESSING', 'CANCELLED'],
+    };
+
+    const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
+    if (!allowed.includes(body.status)) {
+      throw Err.unprocessable(`Cannot transition from ${order.status} to ${body.status}`);
+    }
+    updatePayload.status = body.status;
   }
-
-  const updatePayload = { status: body.status };
   if (body.assigned_we_id)     updatePayload.assigned_we_id = body.assigned_we_id;
   if (body.assigned_ws_id)     updatePayload.assigned_ws_id = body.assigned_ws_id;
   if (body.cancellation_reason) updatePayload.cancellation_reason = body.cancellation_reason;
