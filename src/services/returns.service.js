@@ -1,6 +1,8 @@
 import * as repo from '../repositories/returns.repository.js';
 import * as ordersRepo from '../repositories/orders.repository.js';
 import * as returnPinsRepo from '../repositories/returnPins.repository.js';
+import { adminClient } from '../config/supabase.js';
+import { env } from '../config/env.js';
 import { Err } from '../utils/errors.js';
 import { buildPaginationMeta } from '../utils/pagination.js';
 
@@ -79,4 +81,27 @@ export async function collectReturn(db, returnId, body, wsId) {
   
   // Update status to COLLECTED
   return repo.updateStatus(db, returnId, { status: 'COLLECTED' });
+}
+
+export async function uploadCustomerProofs(db, returnId, files) {
+  const ret = await getReturn(db, returnId); // ensure it exists
+  const urls = [];
+  
+  for (const file of files) {
+    const path = `returns/${returnId}/${Date.now()}_${file.originalname}`;
+    const { error: uploadError } = await adminClient.storage
+      .from(env.SUPABASE_STORAGE_BUCKET_RETURN)
+      .upload(path, file.buffer, { contentType: file.mimetype });
+      
+    if (uploadError) throw Err.internal('File upload failed');
+    
+    const { data: { publicUrl } } = adminClient.storage
+      .from(env.SUPABASE_STORAGE_BUCKET_RETURN)
+      .getPublicUrl(path);
+      
+    await repo.addProofUrl(db, returnId, publicUrl);
+    urls.push(publicUrl);
+  }
+  
+  return { urls };
 }

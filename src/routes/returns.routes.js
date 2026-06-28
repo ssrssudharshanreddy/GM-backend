@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { validateBody, validateQuery, validateParams } from '../middleware/validate.js';
 import { authenticate, isCustomer, requireRole } from '../middleware/auth.js';
+import { uploadMultiple } from '../middleware/upload.js';
 import * as ctrl from '../controllers/returns.controller.js';
 import { createReturnSchema, updateReturnStatusSchema, updateReturnItemOutcomeSchema, listReturnsSchema, verifyReturnPinSchema } from '../schemas/return.schema.js';
 import { idParamSchema } from '../schemas/common.schema.js';
@@ -15,5 +16,6 @@ router.post('/',    isCustomer, validateBody(createReturnSchema), asyncHandler(c
 router.patch('/:id/status',       requireRole('CEO','CREM','WE','WS'), validateParams(idParamSchema), validateBody(updateReturnStatusSchema), asyncHandler(ctrl.updateStatus));
 router.patch('/:id/item-outcomes', requireRole('CEO','WE'),            validateParams(idParamSchema), validateBody(updateReturnItemOutcomeSchema), asyncHandler(ctrl.updateItemOutcomes));
 router.post('/:id/collect',       requireRole('CEO','WS'), validateParams(idParamSchema), validateBody(verifyReturnPinSchema), asyncHandler(ctrl.collect));
+router.post('/:id/proofs',        isCustomer, validateParams(idParamSchema), uploadMultiple, asyncHandler(ctrl.uploadProofs));
 
 export default router;

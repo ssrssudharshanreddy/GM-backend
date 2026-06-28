@@ -2,7 +2,7 @@ import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
 
 const RETURN_SELECT = `
-  id, return_number, customer_id, order_id, status, return_type, notes,
+  id, return_number, customer_id, order_id, status, return_type, notes, proof_urls,
   pickup_scheduled_date, assigned_ws_id, rejection_reason,
   created_at, updated_at,
   customer_profiles(company_name, contact_person, phone),
@@ -79,6 +79,17 @@ export async function create(db, payload) {
 
 export async function updateStatus(db, id, payload) {
   const { data, error } = await db.from('returns').update(payload).eq('id', id).select().single();
+  if (error) throw Err.fromSupabase(error);
+  return mapReturn(data);
+}
+
+export async function addProofUrl(db, id, url) {
+  // Use SQL array append via an RPC, or just fetch and update.
+  // Since we can't easily array_append via PostgREST update without an RPC,
+  // we will fetch the current array, append, and update.
+  const current = await findById(db, id);
+  const updatedUrls = [...(current.proof_urls || []), url];
+  const { data, error } = await db.from('returns').update({ proof_urls: updatedUrls }).eq('id', id).select().single();
   if (error) throw Err.fromSupabase(error);
   return mapReturn(data);
 }

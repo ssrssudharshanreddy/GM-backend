@@ -21,3 +21,9 @@ export async function updateItemOutcomes(req, res) {
 export async function collect(req, res) {
   sendSuccess(res, await service.collectReturn(req.db, req.params.id, req.body, req.user.id));
 }
+export async function uploadProofs(req, res) {
+  if (!req.files || req.files.length === 0) {
+    return sendSuccess(res, { urls: [] });
+  }
+  sendSuccess(res, await service.uploadCustomerProofs(req.db, req.params.id, req.files));
+}
