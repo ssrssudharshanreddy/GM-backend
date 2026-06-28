@@ -46,6 +46,9 @@ export async function findAll(db, query) {
   const enriched = await Promise.all(rows.map(async r => {
     let customer_count = 0;
     let open_tickets = 0;
+    let deliveries_today = 0;
+    let returns_today = 0;
+    
     if (r.role === 'CREM') {
       const [{ count: cCount }, { count: tCount }] = await Promise.all([
         db.from('customer_profiles').select('*', { count: 'exact', head: true }).eq('assigned_crem_id', r.id),
@@ -53,12 +56,29 @@ export async function findAll(db, query) {
       ]);
       customer_count = cCount || 0;
       open_tickets = tCount || 0;
+    } else if (r.role === 'WS') {
+      const today = new Date().toISOString().split('T')[0];
+      const [{ count: dCount }, { count: rCount }] = await Promise.all([
+        db.from('orders').select('*', { count: 'exact', head: true })
+          .eq('assigned_ws_id', r.id)
+          .gte('created_at', `${today}T00:00:00Z`)
+          .lte('created_at', `${today}T23:59:59Z`),
+        db.from('returns').select('*', { count: 'exact', head: true })
+          .eq('assigned_ws_id', r.id)
+          .gte('created_at', `${today}T00:00:00Z`)
+          .lte('created_at', `${today}T23:59:59Z`)
+      ]);
+      deliveries_today = dCount || 0;
+      returns_today = rCount || 0;
     }
+    
     return { 
       ...r, 
       email: emailMap.get(r.id) ?? null,
       customer_count,
-      open_tickets
+      open_tickets,
+      deliveries_today,
+      returns_today
     };
   }));
 
