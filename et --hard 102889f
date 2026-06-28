@@ -1,0 +1,47 @@
+[33ma1ba082[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: commit (amend): Initial commit
+[33m90d5597[m HEAD@{1}: Branch: renamed refs/heads/main to refs/heads/main
+[33m90d5597[m HEAD@{3}: commit: Initial commit
+[33m8305679[m HEAD@{4}: reset: moving to origin/main
+[33m102889f[m HEAD@{5}: checkout: moving from empty-branch to main
+[33m8305679[m HEAD@{6}: commit (initial): chore: initial repository reset
+[33m102889f[m HEAD@{7}: commit: feat: integrate return notifications
+[33mb3e4cf7[m HEAD@{8}: commit: feat: backend support for customer return proofs
+[33m4e06003[m HEAD@{9}: commit: fix: full return system integration on backend
+[33m642667f[m HEAD@{10}: commit: fix: update customer financial balances when payment is verified
+[33m23786fa[m HEAD@{11}: commit: feat: implement dynamic notification dispatcher and integrate into core services
+[33mb4d813f[m HEAD@{12}: commit: fix: include proof_url in PAYMENT_SELECT so receipts are sent to frontend
+[33mb2cdeaf[m HEAD@{13}: commit: fix: update payments table with receipt URL instead of non-existent payment_receipts table
+[33ma76ef9d[m HEAD@{14}: commit: fix: implement missing delivery PIN logic in Node.js instead of RPCs
+[33m54aa6f0[m HEAD@{15}: commit: feat: attach delivery PIN to payload, auto-generate on OUT_FOR_DELIVERY
+[33md2c2bfc[m HEAD@{16}: commit: fix: remove PENDING from timelines, implement missing /deliver endpoint for PIN verification
+[33m2f7d38b[m HEAD@{17}: commit: feat: add OUT_FOR_DELIVERY status to backend ENUM and schema
+[33m433b8e9[m HEAD@{18}: commit: fix: allow optional status and self-transitions when assigning order roles
+[33m3505c87[m HEAD@{19}: commit: fix: compute live product_count per category using adminClient
+[33m9ce83e0[m HEAD@{20}: commit: fix: use adminClient for inventory reads to bypass RLS - fixes Out of Stock in customer portal
+[33m3ab0256[m HEAD@{21}: commit: fix: compute is_in_stock from inventory in mapProduct, join inventory in findAll for catalog
+[33mc522b91[m HEAD@{22}: commit: fix: add sharp image compression, fix bucket 10MB limit, image-only multer filter for products
+[33ma5834ab[m HEAD@{23}: commit: fix: replace non-existent adjust_inventory RPC with direct table ops, use adminClient for RLS bypass
+[33m3fe46d4[m HEAD@{24}: commit: fix: resolve product update 500 error due to extra inventory fields
+[33m9c93754[m HEAD@{25}: commit: fix: make category deletion a soft delete to bypass fk constraints
+[33m5da696b[m HEAD@{26}: commit: fix: foreign key error handling in backend
+[33me4c37d6[m HEAD@{27}: commit: feat: add delete category support
+[33m206d6fd[m HEAD@{28}: commit: feat: split pack size and base unit, add multi-image upload support
+[33m25f6505[m HEAD@{29}: commit: feat: open GST input, low stock alert, quantity for all modes, updated units
+[33mfaf4766[m HEAD@{30}: commit: feat: auto-generate product code, add initial quantity, update units, remove HSN code
+[33m522a6e1[m HEAD@{31}: commit: Fix: bypass RLS for employee listing to allow internal roles to view team members
+[33mc91cdbb[m HEAD@{32}: commit: Fix: replace mock data in CRE summary report with real calculations
+[33m9ff2b53[m HEAD@{33}: commit: Fix: signed URLs for application documents, remove Timeline, fix My Team CREM data
+[33md06c8ea[m HEAD@{34}: commit: Fix 404 Route not found on API calls
+[33m6d27709[m HEAD@{35}: commit: Update backend components
+[33m1252df1[m HEAD@{36}: commit: Fix adminClient session mutation causing permission denied
+[33mcc2b868[m HEAD@{37}: commit: Expose auth role sync errors via AppError
+[33mda32143[m HEAD@{38}: commit: Add explicit error handling to auth service role sync
+[33m07d8a2b[m HEAD@{39}: commit: Fix login issue by dynamically syncing user role to app_metadata if missing
+[33m31a108a[m HEAD@{40}: commit: fix: add pino-pretty to dependencies
+[33m2c03e3f[m HEAD@{41}: commit: chore: remove package-lock.json to resolve npm install crash on Render
+[33me19e69a[m HEAD@{42}: commit: fix: Specify Node.js 22.x engine to resolve Render deployment issue
+[33m4800916[m HEAD@{43}: pull origin main --rebase --allow-unrelated-histories (finish): returning to refs/heads/main
+[33m4800916[m HEAD@{44}: pull origin main --rebase --allow-unrelated-histories (pick): Initial backend commit
+[33m4c3b2de[m HEAD@{45}: pull origin main --rebase --allow-unrelated-histories (start): checkout 4c3b2de76d8f85d77c26c3a81ddf17eb3fd2c404
+[33md639676[m HEAD@{46}: Branch: renamed refs/heads/master to refs/heads/main
+[33md639676[m HEAD@{48}: commit (initial): Initial backend commit

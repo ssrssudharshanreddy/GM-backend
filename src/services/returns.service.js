@@ -69,7 +69,21 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
   if (body.assigned_ws_id)        updatePayload.assigned_ws_id = body.assigned_ws_id;
   if (body.rejection_reason)      updatePayload.rejection_reason = body.rejection_reason;
 
-  const updated = await repo.updateStatus(db, id, updatePayload);
+  let updated;
+  if (body.status === 'RETURN_COMPLETED') {
+    // Generate a credit note number like CN-{Random5}
+    const cnNumber = `CN-${Math.floor(10000 + Math.random() * 90000)}`;
+    const { data: rpcData, error: rpcErr } = await db.rpc('process_return_refund', {
+      p_return_id: id,
+      p_credit_note_number: cnNumber
+    });
+    if (rpcErr) throw Err.fromSupabase(rpcErr);
+    
+    // After RPC, fetch the updated return to return to client
+    updated = await repo.findById(db, id);
+  } else {
+    updated = await repo.updateStatus(db, id, updatePayload);
+  }
 
   if (body.status && body.status !== ret.status) {
     if (['RETURN_APPROVED', 'RETURN_REJECTED', 'PICKUP_SCHEDULED', 'RETURN_COMPLETED'].includes(body.status)) {
