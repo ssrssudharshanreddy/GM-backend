@@ -3,11 +3,18 @@ import { getPagination } from '../utils/pagination.js';
 
 function mapProduct(p) {
   if (!p) return null;
-  const { categories, ...rest } = p;
+  const { categories, inventory, ...rest } = p;
+  const availableQty = (inventory?.quantity ?? 0) - (inventory?.reserved_quantity ?? 0);
   return {
     ...rest,
-    category_name: categories?.name,
-    gst_percent: p.gst_rate ?? 18
+    category_name:  categories?.name,
+    gst_percent:    p.gst_rate ?? 18,
+    // Stock fields — used by customer portal
+    is_in_stock:    availableQty > 0,
+    available_qty:  availableQty,
+    inventory_qty:  inventory?.quantity ?? 0,
+    // Keep inventory nested for the edit form (used by employee portal)
+    inventory: inventory ?? null,
   };
 }
 
@@ -15,7 +22,7 @@ export async function findAll(db, query) {
   const { from, to } = getPagination(query);
   let q = db
     .from('products')
-    .select('*, categories(name)', { count: 'exact' })
+    .select('*, categories(name), inventory(quantity, reserved_quantity, reorder_threshold)', { count: 'exact' })
     .range(from, to)
     .order('name');
 

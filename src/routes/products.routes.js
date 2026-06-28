@@ -47,6 +47,10 @@ const restoreFormData = (req, res, next) => {
 router.post( '/',    
   isWE, 
   uploadMultiple,
+  (req, _res, next) => {
+    console.log('[DEBUG POST /products] files:', req.files?.length, '| body keys:', Object.keys(req.body || {}));
+    next();
+  },
   mapFormData,
   validateBody(createProductSchema), 
   restoreFormData,
@@ -57,6 +61,10 @@ router.patch('/:id',
   isWE, 
   validateParams(idParamSchema), 
   uploadMultiple,
+  (req, _res, next) => {
+    console.log('[DEBUG PATCH /products/:id] files:', req.files?.length, '| body keys:', Object.keys(req.body || {}));
+    next();
+  },
   mapFormData,
   validateBody(updateProductSchema), 
   restoreFormData,
