@@ -28,10 +28,32 @@ export async function findAll(db, query) {
 export async function findById(db, id) {
   const { data, error } = await db
     .from('tickets')
-    .select(`${TICKET_SELECT}, ticket_messages(*, employee_profiles!sender_id(full_name), customer_profiles!sender_id(company_name))`)
+    .select(`${TICKET_SELECT}, ticket_messages(*)`)
     .eq('id', id)
     .maybeSingle();
   if (error) throw Err.fromSupabase(error);
+
+  if (data && data.ticket_messages && data.ticket_messages.length > 0) {
+    const senderIds = [...new Set(data.ticket_messages.map(m => m.sender_id))];
+    const [{ data: employees }, { data: customers }] = await Promise.all([
+      db.from('employee_profiles').select('id, full_name').in('id', senderIds),
+      db.from('customer_profiles').select('id, company_name').in('id', senderIds)
+    ]);
+    
+    const profiles = {};
+    if (employees) employees.forEach(e => profiles[e.id] = { full_name: e.full_name });
+    if (customers) customers.forEach(c => profiles[c.id] = { company_name: c.company_name });
+    
+    data.ticket_messages = data.ticket_messages.map(m => {
+      const p = profiles[m.sender_id] || {};
+      return {
+        ...m,
+        employee_profiles: p.full_name ? { full_name: p.full_name } : null,
+        customer_profiles: p.company_name ? { company_name: p.company_name } : null
+      };
+    });
+  }
+
   return data;
 }
 
