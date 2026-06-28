@@ -4,6 +4,7 @@ import { getPagination } from '../utils/pagination.js';
 const PAYMENT_SELECT = `
   id, invoice_id, customer_id, amount, payment_mode, payment_date,
   reference_number, cheque_number, bank_name, status, remarks,
+  proof_url, proof_file_name,
   verified_by, verified_at, rejection_reason,
   dishonored_at, dishonor_reason,
   created_at, updated_at,
