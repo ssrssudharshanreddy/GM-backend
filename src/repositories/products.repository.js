@@ -25,7 +25,7 @@ export async function findAll(db, query) {
   const { from, to } = getPagination(query);
   let q = db
     .from('products')
-    .select('*, categories(name)', { count: 'exact' })
+    .select('*, categories(name), inventory(*)', { count: 'exact' })
     .range(from, to)
     .order('name');
 
@@ -36,27 +36,13 @@ export async function findAll(db, query) {
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
 
-  // Fetch inventory for all product IDs using adminClient (bypasses RLS)
-  const ids = (data || []).map(p => p.id);
-  let invMap = {};
-  if (ids.length > 0) {
-    const { data: invRows, error: invErr } = await adminClient
-      .from('inventory')
-      .select('product_id, quantity, reserved_quantity, reorder_threshold')
-      .in('product_id', ids);
-    if (invErr) {
-      console.error('[PRODUCTS REPO] adminClient inventory fetch error:', invErr);
-    }
-    (invRows || []).forEach(inv => { invMap[inv.product_id] = inv; });
-  }
-
-  return { data: (data || []).map(p => mapProduct(p, invMap)), count };
+  return { data: (data || []).map(p => mapProduct(p)), count };
 }
 
 export async function findById(db, id) {
   const { data, error } = await db
     .from('products')
-    .select('*, categories(name)')
+    .select('*, categories(name), inventory(*)')
     .eq('id', id)
     .maybeSingle();
   if (error) throw Err.fromSupabase(error);
