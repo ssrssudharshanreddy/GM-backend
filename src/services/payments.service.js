@@ -65,7 +65,10 @@ export async function uploadReceipt(db, paymentId, file, uploadedBy) {
   const { error } = await adminClient.storage
     .from(env.SUPABASE_STORAGE_BUCKET_DOCS)
     .upload(storagePath, file.buffer, { contentType: file.mimetype });
-  if (error) throw Err.internal('File upload failed');
+  if (error) {
+    console.error('Supabase Storage Upload Error:', error);
+    throw Err.internal('File upload failed');
+  }
 
   // Store storage_path, not a public URL — generate signed URLs on demand
   return repo.uploadReceipt(db, paymentId, storagePath, safeFilename, file.mimetype, uploadedBy);

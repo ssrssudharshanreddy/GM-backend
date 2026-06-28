@@ -49,8 +49,9 @@ export async function update(db, id, payload) {
 
 export async function uploadReceipt(db, paymentId, fileUrl, fileName, mimeType, uploadedBy) {
   const { data, error } = await db
-    .from('payment_receipts')
-    .insert({ payment_id: paymentId, file_url: fileUrl, file_name: fileName, file_mime_type: mimeType, uploaded_by: uploadedBy })
+    .from('payments')
+    .update({ proof_url: fileUrl, proof_file_name: fileName })
+    .eq('id', paymentId)
     .select()
     .single();
   if (error) throw Err.fromSupabase(error);
