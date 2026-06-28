@@ -29,6 +29,7 @@ function mapCustomer(row) {
   rest.payment_terms     = ca?.payment_terms      ?? null;
   rest.is_frozen         = ca?.is_frozen          ?? false;
   rest.outstanding_amount = ca?.used_credit       ?? 0; // outstanding = used_credit (unpaid balance)
+  rest.last_payment_date  = ca?.last_payment_date ?? null;
 
   return rest;
 }
@@ -37,7 +38,7 @@ export async function findAll(db, query) {
   const { from, to } = getPagination(query);
   let q = db
     .from('customer_profiles')
-    .select(CUSTOMER_SELECT + ', credit_accounts(credit_limit, used_credit, credit_days, is_frozen)', { count: 'exact' })
+    .select(CUSTOMER_SELECT + ', credit_accounts(credit_limit, used_credit, credit_days, is_frozen, last_payment_date)', { count: 'exact' })
     .range(from, to)
     .order('created_at', { ascending: false });
 

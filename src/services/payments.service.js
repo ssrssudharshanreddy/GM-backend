@@ -57,12 +57,22 @@ export async function verifyPayment(db, id, body, actorId) {
   if (!p) throw Err.notFound('Payment');
   if (p.status !== 'PENDING_VERIFICATION') throw Err.unprocessable('Payment is not pending verification');
 
-  const updated = await repo.update(db, id, {
-    status:           body.status,
-    verified_by:      actorId,
-    verified_at:      new Date().toISOString(),
-    rejection_reason: body.rejection_reason ?? null,
-  });
+  let updated;
+  if (body.status === 'VERIFIED') {
+    const { data, error } = await db.rpc('verify_payment', {
+      p_payment_id: id,
+      p_verified_by: actorId
+    });
+    if (error) throw Err.fromSupabase(error);
+    updated = await repo.findById(db, id); // Fetch the updated record
+  } else {
+    updated = await repo.update(db, id, {
+      status:           body.status,
+      verified_by:      actorId,
+      verified_at:      new Date().toISOString(),
+      rejection_reason: body.rejection_reason ?? null,
+    });
+  }
   
   // Notify Customer
   dispatch({
