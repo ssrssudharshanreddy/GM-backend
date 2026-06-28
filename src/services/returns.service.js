@@ -1,5 +1,6 @@
 import * as repo from '../repositories/returns.repository.js';
 import * as ordersRepo from '../repositories/orders.repository.js';
+import * as returnPinsRepo from '../repositories/returnPins.repository.js';
 import { Err } from '../utils/errors.js';
 import { buildPaginationMeta } from '../utils/pagination.js';
 
@@ -65,4 +66,17 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
 export async function updateItemOutcomes(db, returnId, body) {
   await getReturn(db, returnId); // ensure exists
   return repo.updateItemOutcomes(db, body.items);
+}
+
+export async function collectReturn(db, returnId, body, wsId) {
+  const ret = await getReturn(db, returnId);
+  if (ret.status !== 'PICKUP_SCHEDULED' && ret.status !== 'OUT_FOR_PICKUP') {
+    throw Err.unprocessable(`Return is not in a collectible state (current: ${ret.status})`);
+  }
+  
+  // Verify PIN
+  await returnPinsRepo.verify(db, returnId, body.pin, wsId, body.latitude, body.longitude);
+  
+  // Update status to COLLECTED
+  return repo.updateStatus(db, returnId, { status: 'COLLECTED' });
 }

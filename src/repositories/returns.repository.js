@@ -2,7 +2,7 @@ import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
 
 const RETURN_SELECT = `
-  id, return_number, customer_id, order_id, status, return_type,
+  id, return_number, customer_id, order_id, status, return_type, notes,
   pickup_scheduled_date, assigned_ws_id, rejection_reason,
   created_at, updated_at,
   customer_profiles(company_name, contact_person, phone),
@@ -24,6 +24,28 @@ function mapReturn(ret) {
   if (ret.orders) {
     mapped.order_number = ret.orders.order_number;
   }
+  
+  if (Array.isArray(ret.return_items)) {
+    mapped.item_count = ret.return_items.length;
+    mapped.items = ret.return_items.map(item => ({
+      id: item.id,
+      order_item_id: item.order_item_id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      reason: item.reason,
+      outcome: item.outcome,
+      outcome_notes: item.outcome_notes,
+      product_name: item.products?.name ?? '—',
+      product_code: item.products?.product_code ?? '—',
+      unit: item.products?.unit ?? '—'
+    }));
+    mapped.reason = mapped.items.length > 0 ? mapped.items[0].reason : '—';
+  } else {
+    mapped.items = [];
+    mapped.item_count = 0;
+    mapped.reason = '—';
+  }
+  
   return mapped;
 }
 

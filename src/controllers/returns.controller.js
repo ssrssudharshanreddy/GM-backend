@@ -18,3 +18,6 @@ export async function updateStatus(req, res) {
 export async function updateItemOutcomes(req, res) {
   sendSuccess(res, await service.updateItemOutcomes(req.db, req.params.id, req.body));
 }
+export async function collect(req, res) {
+  sendSuccess(res, await service.collectReturn(req.db, req.params.id, req.body, req.user.id));
+}
