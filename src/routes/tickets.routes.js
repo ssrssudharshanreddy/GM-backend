@@ -16,8 +16,8 @@ router.get(  '/:id', validateParams(idParamSchema),   asyncHandler(ctrl.getById)
 // Only customers create tickets
 router.post( '/',    isCustomer, validateBody(createTicketSchema), asyncHandler(ctrl.create));
 
-// CREM (and CEO) may update ticket metadata (priority, assignment, etc.)
-router.patch('/:id', isCREM, validateParams(idParamSchema), validateBody(updateTicketSchema), asyncHandler(ctrl.update));
+// CRE, CREM (and CEO) may update ticket metadata (status, assignment, etc.)
+router.patch('/:id', requireRole('CEO', 'CREM', 'CRE'), validateParams(idParamSchema), validateBody(updateTicketSchema), asyncHandler(ctrl.update));
 
 // Only ticket participants may add messages: customer who raised it, CRM team, or AE/CRE
 // WE and WS are excluded — they have no customer-facing support role
