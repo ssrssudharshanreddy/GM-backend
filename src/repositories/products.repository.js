@@ -1,9 +1,12 @@
 import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
+import { adminClient } from '../config/supabase.js';
 
-function mapProduct(p) {
+function mapProduct(p, invMap) {
   if (!p) return null;
-  const { categories, inventory, ...rest } = p;
+  const { categories, inventory: invJoined, ...rest } = p;
+  // Use inventory from the invMap (admin query) if provided, else fall back to joined
+  const inventory = invMap?.[p.id] ?? invJoined ?? null;
   const availableQty = (inventory?.quantity ?? 0) - (inventory?.reserved_quantity ?? 0);
   return {
     ...rest,
@@ -22,7 +25,7 @@ export async function findAll(db, query) {
   const { from, to } = getPagination(query);
   let q = db
     .from('products')
-    .select('*, categories(name), inventory(quantity, reserved_quantity, reorder_threshold)', { count: 'exact' })
+    .select('*, categories(name)', { count: 'exact' })
     .range(from, to)
     .order('name');
 
@@ -32,17 +35,37 @@ export async function findAll(db, query) {
 
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
-  return { data: (data || []).map(mapProduct), count };
+
+  // Fetch inventory for all product IDs using adminClient (bypasses RLS)
+  const ids = (data || []).map(p => p.id);
+  let invMap = {};
+  if (ids.length > 0) {
+    const { data: invRows } = await adminClient
+      .from('inventory')
+      .select('product_id, quantity, reserved_quantity, reorder_threshold')
+      .in('product_id', ids);
+    (invRows || []).forEach(inv => { invMap[inv.product_id] = inv; });
+  }
+
+  return { data: (data || []).map(p => mapProduct(p, invMap)), count };
 }
 
 export async function findById(db, id) {
   const { data, error } = await db
     .from('products')
-    .select('*, categories(name), inventory(*)')
+    .select('*, categories(name)')
     .eq('id', id)
     .maybeSingle();
   if (error) throw Err.fromSupabase(error);
-  return mapProduct(data);
+
+  // Fetch inventory separately using adminClient to bypass RLS
+  const { data: inv } = await adminClient
+    .from('inventory')
+    .select('*')
+    .eq('product_id', id)
+    .maybeSingle();
+
+  return mapProduct(data, { [id]: inv });
 }
 
 export async function create(db, payload) {
