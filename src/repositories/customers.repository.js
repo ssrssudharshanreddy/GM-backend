@@ -48,6 +48,15 @@ export async function findAll(db, query) {
     // CREM sees only their assigned customers (RLS also enforces this)
   }
   if (query.search)           q = q.ilike('company_name', `%${query.search}%`);
+  if (query.overdue === 'true') {
+    // Filter customers who have at least one OVERDUE invoice
+    const { data: overdueInvoices } = await db.from('invoices').select('customer_id').eq('status', 'OVERDUE');
+    const overdueCustomerIds = [...new Set((overdueInvoices || []).map(i => i.customer_id))];
+    if (overdueCustomerIds.length === 0) {
+      return { data: [], count: 0 };
+    }
+    q = q.in('id', overdueCustomerIds);
+  }
 
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
@@ -60,6 +69,16 @@ export async function findAll(db, query) {
       .limit(1)
       .maybeSingle();
     c.last_order_date = orderData?.created_at || null;
+    
+    if (query.overdue === 'true') {
+      const { data: agingData } = await db.from('v_collection_aging')
+        .select('days_overdue')
+        .eq('customer_id', c.id)
+        .order('days_overdue', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      c.overdue_days = agingData?.days_overdue || 0;
+    }
   }));
   
   return { data: mapped, count };
