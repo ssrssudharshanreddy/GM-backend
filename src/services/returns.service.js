@@ -5,6 +5,7 @@ import { adminClient } from '../config/supabase.js';
 import { env } from '../config/env.js';
 import { Err } from '../utils/errors.js';
 import { buildPaginationMeta } from '../utils/pagination.js';
+import { dispatch, dispatchToRole } from '../repositories/notifications.repository.js';
 
 export async function listReturns(db, query) {
   const { data, count } = await repo.findAll(db, query);
@@ -17,22 +18,28 @@ export async function getReturn(db, id) {
   return r;
 }
 
-export async function createReturn(db, body, customerId) {
-  // Confirm the order exists and belongs to this customer.
-  // RLS also enforces this at the DB layer; we validate here for a clear error message.
-  const order = await ordersRepo.findById(db, body.order_id);
-  if (!order) throw Err.notFound('Order');
-  if (order.customer_id !== customerId) {
-    throw Err.forbidden('You can only request returns for your own orders');
-  }
-
-  return repo.create(db, {
+export async function createReturn(db, payload, customerId) {
+  // Use a transaction since we insert into returns and return_items
+  const { data: ret, error } = await db.rpc('create_return', {
     p_customer_id: customerId,
-    p_order_id:    body.order_id,
-    p_return_type: body.return_type,
-    p_items:       body.items,
-    p_notes:       body.notes ?? null,
+    p_order_id: payload.order_id,
+    p_return_type: payload.return_type,
+    p_notes: payload.notes,
+    p_items: payload.items
   });
+  if (error) throw Err.fromSupabase(error);
+  
+  dispatchToRole({
+    recipient_role: 'WE',
+    type: 'RETURN_UPDATE',
+    title: 'New Return Request',
+    body: `A new return request has been submitted.`,
+    entity_type: 'return',
+    entity_id: ret.id,
+    action_url: `/we/returns/${ret.id}`
+  });
+
+  return ret;
 }
 
 export async function updateReturnStatus(db, id, body, actorId, actorRole) {
@@ -62,7 +69,37 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
   if (body.assigned_ws_id)        updatePayload.assigned_ws_id = body.assigned_ws_id;
   if (body.rejection_reason)      updatePayload.rejection_reason = body.rejection_reason;
 
-  return repo.updateStatus(db, id, updatePayload);
+  const updated = await repo.updateStatus(db, id, updatePayload);
+
+  if (body.status && body.status !== ret.status) {
+    if (['RETURN_APPROVED', 'RETURN_REJECTED', 'PICKUP_SCHEDULED', 'RETURN_COMPLETED'].includes(body.status)) {
+      dispatch({
+        recipient_id: ret.customer_id,
+        recipient_role: 'CUSTOMER',
+        type: 'RETURN_UPDATE',
+        title: `Return ${body.status.replace('RETURN_', '')}`,
+        body: `Your return request has been updated to ${body.status.replace(/_/g, ' ')}.`,
+        entity_type: 'return',
+        entity_id: id,
+        action_url: `/returns/${id}`
+      });
+    }
+  }
+
+  if (body.assigned_ws_id && body.assigned_ws_id !== ret.assigned_ws_id) {
+    dispatch({
+      recipient_id: body.assigned_ws_id,
+      recipient_role: 'WS',
+      type: 'RETURN_UPDATE',
+      title: 'New Return Assigned',
+      body: `You have been assigned to pick up a return.`,
+      entity_type: 'return',
+      entity_id: id,
+      action_url: `/ws/returns/${id}`
+    });
+  }
+
+  return updated;
 }
 
 export async function updateItemOutcomes(db, returnId, body) {
@@ -79,6 +116,17 @@ export async function collectReturn(db, returnId, body, wsId) {
   // Verify PIN
   await returnPinsRepo.verify(db, returnId, body.pin, wsId, body.latitude, body.longitude);
   
+  dispatch({
+    recipient_id: ret.customer_id,
+    recipient_role: 'CUSTOMER',
+    type: 'RETURN_UPDATE',
+    title: 'Return Collected',
+    body: `Your return has been successfully collected.`,
+    entity_type: 'return',
+    entity_id: returnId,
+    action_url: `/returns/${returnId}`
+  });
+
   // Update status to COLLECTED
   return repo.updateStatus(db, returnId, { status: 'COLLECTED' });
 }
