@@ -5,7 +5,7 @@ const RETURN_SELECT = `
   id, return_number, customer_id, order_id, status, return_type, notes, proof_urls,
   pickup_scheduled_date, assigned_ws_id, rejection_reason,
   created_at, updated_at,
-  customer_profiles(company_name, contact_person_name, contact_phone, delivery_address),
+  customer_profiles(company_name, contact_person, phone, delivery_address),
   orders(order_number, delivery_address),
   return_items(
     id, order_item_id, product_id, quantity, reason, outcome, outcome_notes,
@@ -18,8 +18,8 @@ function mapReturn(ret) {
   const mapped = { ...ret };
   if (ret.customer_profiles) {
     mapped.company_name = ret.customer_profiles.company_name;
-    mapped.contact_person = ret.customer_profiles.contact_person_name;
-    mapped.phone = ret.customer_profiles.contact_phone;
+    mapped.contact_person = ret.customer_profiles.contact_person;
+    mapped.phone = ret.customer_profiles.phone;
   }
   if (ret.orders) {
     mapped.order_number = ret.orders.order_number;
