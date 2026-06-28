@@ -10,6 +10,15 @@ export async function listInventory(db, query) {
 export async function getByProduct(db, productId) {
   const inv = await repo.findByProduct(db, productId);
   if (!inv) throw Err.notFound('Inventory record');
+  
+  const movements = await repo.findMovements(db, { product_id: productId, limit: 50 });
+  inv.adjustments = (movements.data || []).map(m => ({
+    reason: m.reason || m.adjustment_type,
+    actor_name: m.employee_profiles?.full_name || 'System',
+    created_at: m.created_at,
+    quantity: m.quantity_change
+  }));
+
   return inv;
 }
 
