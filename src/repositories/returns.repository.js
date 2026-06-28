@@ -5,7 +5,7 @@ const RETURN_SELECT = `
   id, return_number, customer_id, order_id, status, return_type, notes, proof_urls,
   pickup_scheduled_date, assigned_ws_id, rejection_reason,
   created_at, updated_at,
-  customer_profiles(company_name, contact_person, phone, city, state, pincode),
+  customer_profiles(company_name, contact_person_name, contact_phone, delivery_address),
   orders(order_number, delivery_address),
   return_items(
     id, order_item_id, product_id, quantity, reason, outcome, outcome_notes,
@@ -18,16 +18,27 @@ function mapReturn(ret) {
   const mapped = { ...ret };
   if (ret.customer_profiles) {
     mapped.company_name = ret.customer_profiles.company_name;
-    mapped.contact_person = ret.customer_profiles.contact_person;
-    mapped.phone = ret.customer_profiles.phone;
+    mapped.contact_person = ret.customer_profiles.contact_person_name;
+    mapped.phone = ret.customer_profiles.contact_phone;
   }
   if (ret.orders) {
     mapped.order_number = ret.orders.order_number;
-    const da = ret.orders.delivery_address;
+    let da = ret.orders.delivery_address;
+    if (typeof da === 'string') {
+      try { da = JSON.parse(da); } catch(e) {}
+    }
     if (da && typeof da === 'object' && Object.keys(da).length > 0) {
       mapped.pickup_address = [da.line1, da.line2, da.city, da.state, da.pincode].filter(Boolean).join(', ');
-    } else if (ret.customer_profiles) {
-      mapped.pickup_address = [ret.customer_profiles.city, ret.customer_profiles.state, ret.customer_profiles.pincode].filter(Boolean).join(', ');
+    } else if (ret.customer_profiles && ret.customer_profiles.delivery_address) {
+      let cda = ret.customer_profiles.delivery_address;
+      if (typeof cda === 'string') {
+        try { cda = JSON.parse(cda); } catch(e) {}
+      }
+      if (cda && typeof cda === 'object' && Object.keys(cda).length > 0) {
+        mapped.pickup_address = [cda.line1, cda.line2, cda.city, cda.state, cda.pincode].filter(Boolean).join(', ');
+      } else {
+        mapped.pickup_address = '—';
+      }
     } else {
       mapped.pickup_address = '—';
     }
