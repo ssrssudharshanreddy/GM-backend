@@ -34,7 +34,8 @@ export async function updateOrderStatus(db, id, body, actorId, actorRole) {
       CONFIRMED:   ['PROCESSING', 'STOCK_HOLD', 'CANCELLED'],
       PROCESSING:  ['PACKED', 'STOCK_HOLD', 'CANCELLED'],
       PACKED:      ['DISPATCHED'],
-      DISPATCHED:  ['DELIVERED'],
+      DISPATCHED:  ['OUT_FOR_DELIVERY'],
+      OUT_FOR_DELIVERY: ['DELIVERED'],
       STOCK_HOLD:  ['PROCESSING', 'CANCELLED'],
     };
 

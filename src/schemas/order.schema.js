@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { inrAmountSchema } from './common.schema.js';
 
-const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'DISPATCHED', 'DELIVERED', 'CANCELLED', 'STOCK_HOLD'];
+const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'STOCK_HOLD'];
 
 const addressSchema = z.object({
   line1:   z.string().min(1),
