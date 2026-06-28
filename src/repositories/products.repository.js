@@ -40,10 +40,13 @@ export async function findAll(db, query) {
   const ids = (data || []).map(p => p.id);
   let invMap = {};
   if (ids.length > 0) {
-    const { data: invRows } = await adminClient
+    const { data: invRows, error: invErr } = await adminClient
       .from('inventory')
       .select('product_id, quantity, reserved_quantity, reorder_threshold')
       .in('product_id', ids);
+    if (invErr) {
+      console.error('[PRODUCTS REPO] adminClient inventory fetch error:', invErr);
+    }
     (invRows || []).forEach(inv => { invMap[inv.product_id] = inv; });
   }
 
