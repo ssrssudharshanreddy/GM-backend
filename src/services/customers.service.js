@@ -12,13 +12,20 @@ function sanitizeFilename(name) {
   return path.basename(name).replace(/[^a-zA-Z0-9._\-]/g, '_');
 }
 
-/** Generate a short-lived signed URL (1 hour) for a private storage object */
 async function getSignedUrl(bucket, storagePath) {
-  const { data, error } = await adminClient.storage
-    .from(bucket)
-    .createSignedUrl(storagePath, 3600);
-  if (error) throw Err.internal('Failed to generate document URL');
-  return data.signedUrl;
+  try {
+    const { data, error } = await adminClient.storage
+      .from(bucket)
+      .createSignedUrl(storagePath, 3600);
+    if (error) {
+      console.error(`getSignedUrl error for bucket '${bucket}' path '${storagePath}':`, error.message || error);
+      return null;
+    }
+    return data?.signedUrl || null;
+  } catch (err) {
+    console.error(`getSignedUrl exception for path '${storagePath}':`, err.message || err);
+    return null;
+  }
 }
 
 export async function listCustomers(db, query) {
