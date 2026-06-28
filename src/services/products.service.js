@@ -86,16 +86,16 @@ export async function create(db, body, files = []) {
     }
   }
 
-  // Seed initial inventory
-  if ((initial_quantity && Number(initial_quantity) > 0) || reorder_threshold !== undefined) {
+  // Seed initial inventory — use adminClient to bypass RLS on inventory table
+  if ((initial_quantity && Number(initial_quantity) > 0) || (reorder_threshold !== undefined && reorder_threshold !== '')) {
     try {
-      await inventoryRepo.upsert(db, product.id, Number(initial_quantity) || 0, {
-        adjustment_type: 'INITIAL_STOCK',
+      await inventoryRepo.upsert(adminClient, product.id, Number(initial_quantity) || 0, {
+        adjustment_type: 'ADD',
         reason: 'Initial stock on product creation',
-        reorder_threshold: reorder_threshold !== undefined ? Number(reorder_threshold) : undefined,
+        reorder_threshold: (reorder_threshold !== undefined && reorder_threshold !== '') ? Number(reorder_threshold) : 0,
       }, null);
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      console.error('Failed to seed initial inventory:', err);
     }
   }
 
@@ -130,13 +130,13 @@ export async function update(db, id, body, files = []) {
 
   const updatedProduct = await repo.update(db, id, productData);
 
-  // Update inventory if quantity adjustment or threshold change provided
-  if ((initial_quantity && Number(initial_quantity) !== 0) || reorder_threshold !== undefined) {
+  // Update inventory if quantity adjustment or threshold change provided — use adminClient to bypass RLS
+  if ((initial_quantity && Number(initial_quantity) !== 0) || (reorder_threshold !== undefined && reorder_threshold !== '')) {
     try {
-      await inventoryRepo.upsert(db, id, Number(initial_quantity) || 0, {
-        adjustment_type: 'MANUAL_ADJUSTMENT',
+      await inventoryRepo.upsert(adminClient, id, Number(initial_quantity) || 0, {
+        adjustment_type: Number(initial_quantity) >= 0 ? 'ADD' : 'REMOVE',
         reason: 'Adjusted via product edit',
-        reorder_threshold: reorder_threshold !== undefined ? Number(reorder_threshold) : undefined,
+        reorder_threshold: (reorder_threshold !== undefined && reorder_threshold !== '') ? Number(reorder_threshold) : undefined,
       }, null);
     } catch (err) {
       console.error('Failed to update inventory during product edit', err);

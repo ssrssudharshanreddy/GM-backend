@@ -62,17 +62,52 @@ export async function findMovements(db, query) {
 }
 
 export async function upsert(db, productId, quantityChange, payload, performedBy) {
-  // Use the DB function for atomic inventory adjustment
-  const { data, error } = await db.rpc('adjust_inventory', {
-    p_product_id:      productId,
-    p_quantity_change: quantityChange,
-    p_movement_type:   payload.adjustment_type,
-    p_reason:          payload.reason,
-    p_performed_by:    performedBy,
-    p_reorder_threshold: payload.reorder_threshold ?? null,
-  });
-  if (error) throw Err.fromSupabase(error);
-  return data;
+  // Step 1: Get or create inventory row
+  const { data: existing, error: fetchErr } = await db
+    .from('inventory')
+    .select('quantity, reserved_quantity, reorder_threshold')
+    .eq('product_id', productId)
+    .maybeSingle();
+  if (fetchErr) throw Err.fromSupabase(fetchErr);
+
+  const qtyBefore = existing?.quantity ?? 0;
+  const newQty = Math.max(0, qtyBefore + Number(quantityChange));
+  const newThreshold = payload.reorder_threshold !== undefined && payload.reorder_threshold !== null
+    ? Number(payload.reorder_threshold)
+    : (existing?.reorder_threshold ?? 0);
+
+  // Step 2: Upsert inventory row
+  const { data: inv, error: upsertErr } = await db
+    .from('inventory')
+    .upsert(
+      {
+        product_id: productId,
+        quantity: newQty,
+        reorder_threshold: newThreshold,
+        ...(quantityChange > 0 ? { last_restocked_at: new Date().toISOString() } : {}),
+      },
+      { onConflict: 'product_id' }
+    )
+    .select()
+    .single();
+  if (upsertErr) throw Err.fromSupabase(upsertErr);
+
+  // Step 3: Log the movement (only if quantity actually changed)
+  if (quantityChange !== 0) {
+    const adjustmentType = Number(quantityChange) >= 0 ? 'ADD' : 'REMOVE';
+    await db.from('inventory_movements').insert({
+      product_id:      productId,
+      adjustment_type: adjustmentType,
+      quantity_change: Number(quantityChange),
+      quantity_before: qtyBefore,
+      quantity_after:  newQty,
+      reference_type:  'manual',
+      reason:          payload.reason || null,
+      performed_by:    performedBy || null,
+    });
+  }
+
+  return inv;
 }
 
 export async function updateThreshold(db, productId, threshold) {
