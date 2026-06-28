@@ -78,11 +78,11 @@ export async function updateLimit(db, customerId, body, actorId) {
 }
 
 export async function freeze(db, customerId, reason, actorId) {
-  return repo.update(db, customerId, { is_frozen: true, freeze_reason: reason, frozen_by: actorId, frozen_at: new Date().toISOString() });
+  return repo.update(db, customerId, { is_frozen: true, frozen_reason: reason, frozen_by: actorId, frozen_at: new Date().toISOString() });
 }
 
 export async function unfreeze(db, customerId, actorId) {
-  return repo.update(db, customerId, { is_frozen: false, freeze_reason: null });
+  return repo.update(db, customerId, { is_frozen: false, frozen_reason: null, frozen_by: null, frozen_at: null });
 }
 
 export async function getHistory(db, customerId, query) {
