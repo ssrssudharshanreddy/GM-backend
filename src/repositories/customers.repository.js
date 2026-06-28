@@ -51,7 +51,18 @@ export async function findAll(db, query) {
 
   const { data, error, count } = await q;
   if (error) throw Err.fromSupabase(error);
-  return { data: (data || []).map(mapCustomer), count };
+  const mapped = (data || []).map(mapCustomer);
+  await Promise.all(mapped.map(async c => {
+    const { data: orderData } = await db.from('orders')
+      .select('created_at')
+      .eq('customer_id', c.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    c.last_order_date = orderData?.created_at || null;
+  }));
+  
+  return { data: mapped, count };
 }
 
 export async function findById(db, id) {
@@ -61,7 +72,17 @@ export async function findById(db, id) {
     .eq('id', id)
     .maybeSingle();
   if (error) throw Err.fromSupabase(error);
-  return mapCustomer(data);
+  const c = mapCustomer(data);
+  if (c) {
+    const { data: orderData } = await db.from('orders')
+      .select('created_at')
+      .eq('customer_id', c.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    c.last_order_date = orderData?.created_at || null;
+  }
+  return c;
 }
 
 export async function create(db, payload) {
