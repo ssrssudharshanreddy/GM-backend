@@ -10,6 +10,13 @@ export async function listOrders(db, query) {
 export async function getOrder(db, id) {
   const order = await repo.findById(db, id);
   if (!order) throw Err.notFound('Order');
+  
+  // Attach active delivery pin if one exists (for the customer portal)
+  const pinObj = await pinRepo.findActiveByOrder(db, id);
+  if (pinObj) {
+    order.delivery_pin = pinObj.plain_pin;
+  }
+  
   return order;
 }
 
@@ -44,6 +51,11 @@ export async function updateOrderStatus(db, id, body, actorId, actorRole) {
       throw Err.unprocessable(`Cannot transition from ${order.status} to ${body.status}`);
     }
     updatePayload.status = body.status;
+    
+    // Generate the delivery PIN if transitioning to OUT_FOR_DELIVERY
+    if (body.status === 'OUT_FOR_DELIVERY') {
+      await pinRepo.generate(db, id, actorId);
+    }
   }
   if (body.assigned_we_id)     updatePayload.assigned_we_id = body.assigned_we_id;
   if (body.assigned_ws_id)     updatePayload.assigned_ws_id = body.assigned_ws_id;
