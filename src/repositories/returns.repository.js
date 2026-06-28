@@ -5,7 +5,7 @@ const RETURN_SELECT = `
   id, return_number, customer_id, order_id, status, return_type, notes, proof_urls,
   pickup_scheduled_date, assigned_ws_id, rejection_reason,
   created_at, updated_at,
-  customer_profiles(company_name, contact_person, phone, delivery_address),
+  customer_profiles(company_name, contact_person, phone),
   orders(order_number, delivery_address),
   return_items(
     id, order_item_id, product_id, quantity, reason, outcome, outcome_notes,
@@ -29,16 +29,6 @@ function mapReturn(ret) {
     }
     if (da && typeof da === 'object' && Object.keys(da).length > 0) {
       mapped.pickup_address = [da.line1, da.line2, da.city, da.state, da.pincode].filter(Boolean).join(', ');
-    } else if (ret.customer_profiles && ret.customer_profiles.delivery_address) {
-      let cda = ret.customer_profiles.delivery_address;
-      if (typeof cda === 'string') {
-        try { cda = JSON.parse(cda); } catch(e) {}
-      }
-      if (cda && typeof cda === 'object' && Object.keys(cda).length > 0) {
-        mapped.pickup_address = [cda.line1, cda.line2, cda.city, cda.state, cda.pincode].filter(Boolean).join(', ');
-      } else {
-        mapped.pickup_address = '—';
-      }
     } else {
       mapped.pickup_address = '—';
     }
