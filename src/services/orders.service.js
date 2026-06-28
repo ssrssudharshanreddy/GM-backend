@@ -52,3 +52,12 @@ export async function updateOrderStatus(db, id, body, actorId, actorRole) {
 
   return repo.updateStatus(db, id, updatePayload);
 }
+
+import * as pinRepo from '../repositories/deliveryPins.repository.js';
+export async function deliverOrder(db, orderId, pin, wsId, latitude, longitude) {
+  const order = await repo.findById(db, orderId);
+  if (!order) throw Err.notFound('Order');
+  if (order.status !== 'OUT_FOR_DELIVERY') throw Err.unprocessable('Order is not out for delivery');
+  
+  return pinRepo.verify(db, orderId, pin, wsId, latitude, longitude);
+}

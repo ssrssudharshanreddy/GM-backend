@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { validateBody, validateQuery, validateParams } from '../middleware/validate.js';
 import { authenticate, isCustomer, isInternal, requireRole } from '../middleware/auth.js';
 import * as ctrl from '../controllers/orders.controller.js';
-import { createOrderSchema, updateOrderStatusSchema, listOrdersSchema } from '../schemas/order.schema.js';
+import { createOrderSchema, updateOrderStatusSchema, listOrdersSchema, verifyDeliveryPinSchema } from '../schemas/order.schema.js';
 import { idParamSchema } from '../schemas/common.schema.js';
 
 const router = Router();
@@ -19,5 +19,6 @@ router.post('/',    isCustomer, validateBody(createOrderSchema), asyncHandler(ct
 // Order status transitions: WE manages allocation/processing; WS handles picking/delivery.
 // CREM is view-only on orders per spec — excluded from this route.
 router.patch('/:id/status', requireRole('CEO','WE','WS'), validateParams(idParamSchema), validateBody(updateOrderStatusSchema), asyncHandler(ctrl.updateStatus));
+router.post('/:id/deliver', requireRole('WS'), validateParams(idParamSchema), validateBody(verifyDeliveryPinSchema), asyncHandler(ctrl.deliver));
 
 export default router;

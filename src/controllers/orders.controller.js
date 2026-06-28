@@ -16,3 +16,8 @@ export async function updateStatus(req, res) {
   const order = await service.updateOrderStatus(req.db, req.params.id, req.body, req.user.id, req.user.role);
   sendSuccess(res, order);
 }
+
+export async function deliver(req, res) {
+  const result = await service.deliverOrder(req.db, req.params.id, req.body.pin, req.user.id, req.body.latitude, req.body.longitude);
+  sendSuccess(res, result);
+}
