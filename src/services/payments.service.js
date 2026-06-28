@@ -1,4 +1,5 @@
 import * as repo from '../repositories/payments.repository.js';
+import { dispatch, dispatchToRole } from '../repositories/notifications.repository.js';
 import { adminClient } from '../config/supabase.js';
 import { env } from '../config/env.js';
 import { Err } from '../utils/errors.js';
@@ -18,15 +19,37 @@ export async function listPayments(db, query) {
 export async function getPayment(db, id) {
   const p = await repo.findById(db, id);
   if (!p) throw Err.notFound('Payment');
+  
+  if (p.proof_url) {
+    const { data } = await adminClient.storage
+      .from(env.SUPABASE_STORAGE_BUCKET_DOCS)
+      .createSignedUrl(p.proof_url, 60 * 60); // 1 hour
+    if (data?.signedUrl) {
+      p.proof_url_signed = data.signedUrl;
+    }
+  }
+  
   return p;
 }
 
 export async function submitPayment(db, body, customerId) {
-  return repo.create(db, {
+  const payment = await repo.create(db, {
     ...body,
     customer_id: customerId,
     status: 'PENDING_VERIFICATION',
   });
+  
+  // Notify AEs
+  dispatchToRole('AE', {
+    type: 'PAYMENT_ALERT',
+    title: 'New Payment Submitted',
+    body: `A new payment of ₹${payment.amount} is pending verification.`,
+    entity_type: 'payment',
+    entity_id: payment.id,
+    action_url: `/ae/payments/${payment.id}`
+  });
+  
+  return payment;
 }
 
 export async function verifyPayment(db, id, body, actorId) {
@@ -34,12 +57,26 @@ export async function verifyPayment(db, id, body, actorId) {
   if (!p) throw Err.notFound('Payment');
   if (p.status !== 'PENDING_VERIFICATION') throw Err.unprocessable('Payment is not pending verification');
 
-  return repo.update(db, id, {
+  const updated = await repo.update(db, id, {
     status:           body.status,
     verified_by:      actorId,
     verified_at:      new Date().toISOString(),
     rejection_reason: body.rejection_reason ?? null,
   });
+  
+  // Notify Customer
+  dispatch({
+    recipient_id: p.customer_id,
+    recipient_role: 'CUSTOMER',
+    type: 'PAYMENT_ALERT',
+    title: `Payment ${body.status === 'VERIFIED' ? 'Verified' : 'Rejected'}`,
+    body: `Your payment of ₹${p.amount} has been ${body.status === 'VERIFIED' ? 'verified' : 'rejected'}.`,
+    entity_type: 'payment',
+    entity_id: p.id,
+    action_url: `/payments`
+  });
+  
+  return updated;
 }
 
 export async function markDishonored(db, id, body, actorId) {

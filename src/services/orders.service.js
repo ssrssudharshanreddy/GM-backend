@@ -1,4 +1,6 @@
 import * as repo from '../repositories/orders.repository.js';
+import * as pinRepo from '../repositories/deliveryPins.repository.js';
+import { dispatch, dispatchToRole } from '../repositories/notifications.repository.js';
 import { Err } from '../utils/errors.js';
 import { buildPaginationMeta } from '../utils/pagination.js';
 
@@ -62,14 +64,57 @@ export async function updateOrderStatus(db, id, body, actorId, actorRole) {
   if (body.cancellation_reason) updatePayload.cancellation_reason = body.cancellation_reason;
   if (body.stock_hold_reason)   updatePayload.stock_hold_reason = body.stock_hold_reason;
 
-  return repo.updateStatus(db, id, updatePayload);
+  const updated = await repo.updateStatus(db, id, updatePayload);
+  
+  if (body.status && body.status !== order.status) {
+    if (['CONFIRMED', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'CANCELLED'].includes(body.status)) {
+      dispatch({
+        recipient_id: order.customer_id,
+        recipient_role: 'CUSTOMER',
+        type: 'ORDER_UPDATE',
+        title: `Order ${body.status}`,
+        body: `Your order has been updated to ${body.status.replace(/_/g, ' ')}.`,
+        entity_type: 'order',
+        entity_id: id,
+        action_url: `/orders/${id}`
+      });
+    }
+  }
+
+  // Notify WS if assigned
+  if (body.assigned_ws_id && body.assigned_ws_id !== order.assigned_ws_id) {
+    dispatch({
+      recipient_id: body.assigned_ws_id,
+      recipient_role: 'WS',
+      type: 'ORDER_UPDATE',
+      title: 'New Order Assigned',
+      body: `You have been assigned to process a new order.`,
+      entity_type: 'order',
+      entity_id: id,
+      action_url: `/ws/orders/${id}`
+    });
+  }
+
+  return updated;
 }
 
-import * as pinRepo from '../repositories/deliveryPins.repository.js';
 export async function deliverOrder(db, orderId, pin, wsId, latitude, longitude) {
   const order = await repo.findById(db, orderId);
   if (!order) throw Err.notFound('Order');
   if (order.status !== 'OUT_FOR_DELIVERY') throw Err.unprocessable('Order is not out for delivery');
   
-  return pinRepo.verify(db, orderId, pin, wsId, latitude, longitude);
+  const result = await pinRepo.verify(db, orderId, pin, wsId, latitude, longitude);
+  
+  dispatch({
+    recipient_id: order.customer_id,
+    recipient_role: 'CUSTOMER',
+    type: 'ORDER_UPDATE',
+    title: 'Order Delivered',
+    body: `Your order has been successfully delivered.`,
+    entity_type: 'order',
+    entity_id: orderId,
+    action_url: `/orders/${orderId}`
+  });
+  
+  return result;
 }

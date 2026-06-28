@@ -1,5 +1,6 @@
 import { Err } from '../utils/errors.js';
 import { getPagination } from '../utils/pagination.js';
+import { adminClient } from '../config/supabase.js';
 
 export async function findForUser(db, recipientId, query) {
   const { from, to } = getPagination(query);
@@ -64,4 +65,40 @@ export async function upsertPreferences(db, recipientId, prefs) {
     .single();
   if (error) throw Err.fromSupabase(error);
   return data;
+}
+
+export async function dispatch(payload) {
+  const { error } = await adminClient
+    .from('notifications')
+    .insert(payload);
+  if (error) {
+    console.error('Failed to dispatch notification:', error);
+  }
+}
+
+export async function dispatchToRole(role, payloadBase) {
+  const { data: users, error: userError } = await adminClient
+    .from('employee_profiles')
+    .select('id')
+    .eq('role', role)
+    .is('deleted_at', null)
+    .eq('status', 'ACTIVE');
+    
+  if (userError || !users?.length) {
+    return;
+  }
+
+  const payloads = users.map(u => ({
+    ...payloadBase,
+    recipient_id: u.id,
+    recipient_role: role
+  }));
+
+  const { error } = await adminClient
+    .from('notifications')
+    .insert(payloads);
+    
+  if (error) {
+    console.error(`Failed to dispatch notifications to role ${role}:`, error);
+  }
 }
