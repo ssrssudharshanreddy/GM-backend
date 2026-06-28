@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { Err } from '../utils/errors.js';
 import { buildPaginationMeta } from '../utils/pagination.js';
 import path from 'path';
+import sharp from 'sharp';
 
 export async function list(db, query) {
   const { data, count } = await repo.findAll(db, query);
@@ -22,19 +23,39 @@ function sanitizeFilename(name) {
   return path.basename(name).replace(/[^a-zA-Z0-9._\-]/g, '_');
 }
 
+/**
+ * Compress and resize an image buffer using sharp.
+ * Returns WebP buffer at max 1200px width, 85% quality.
+ */
+async function compressImage(buffer, mimetype) {
+  try {
+    return await sharp(buffer)
+      .rotate()                          // Auto-rotate based on EXIF
+      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+  } catch {
+    // If sharp fails (corrupt image etc), return original buffer
+    return buffer;
+  }
+}
+
 /** Upload product images and return public URLs */
 async function uploadProductImages(productId, files = []) {
   const urls = [];
   for (const file of files) {
-    const safeFilename = sanitizeFilename(file.originalname);
-    const storagePath = `${productId}/${Date.now()}_${safeFilename}`;
+    const safeBasename = sanitizeFilename(file.originalname).replace(/\.[^.]+$/, '') || 'image';
+    const storagePath = `${productId}/${Date.now()}_${safeBasename}.webp`;
+
+    // Compress & convert to WebP before uploading
+    const compressed = await compressImage(file.buffer, file.mimetype);
     
     const { error: uploadError } = await adminClient.storage
       .from(env.SUPABASE_STORAGE_BUCKET_PRODUCTS)
-      .upload(storagePath, file.buffer, { contentType: file.mimetype });
+      .upload(storagePath, compressed, { contentType: 'image/webp', upsert: false });
       
     if (uploadError) {
-      console.error('Failed to upload product image:', uploadError);
+      console.error('Failed to upload product image:', uploadError.message);
       continue;
     }
     
