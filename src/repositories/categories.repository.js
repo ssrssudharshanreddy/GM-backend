@@ -27,11 +27,3 @@ export async function update(db, id, payload) {
   if (error) throw Err.fromSupabase(error);
   return data;
 }
-
-export async function remove(db, id) {
-  const { error } = await db.from('categories')
-    .update({ is_active: false, deleted_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw Err.fromSupabase(error);
-  return true;
-}

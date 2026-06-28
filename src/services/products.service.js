@@ -106,7 +106,7 @@ export async function update(db, id, body, files = []) {
   const p = await repo.findById(db, id);
   if (!p) throw Err.notFound('Product');
 
-  const { pack_size, deleted_images = [], ...productData } = body;
+  const { pack_size, deleted_images = [], initial_quantity, reorder_threshold, ...productData } = body;
 
   if (pack_size !== undefined) {
     productData.specifications = { ...(p.specifications || {}), pack_size: Number(pack_size) };
@@ -128,5 +128,20 @@ export async function update(db, id, body, files = []) {
   
   productData.images = currentImages;
 
-  return repo.update(db, id, productData);
+  const updatedProduct = await repo.update(db, id, productData);
+
+  // Update inventory if quantity adjustment or threshold change provided
+  if ((initial_quantity && Number(initial_quantity) !== 0) || reorder_threshold !== undefined) {
+    try {
+      await inventoryRepo.upsert(db, id, Number(initial_quantity) || 0, {
+        adjustment_type: 'MANUAL_ADJUSTMENT',
+        reason: 'Adjusted via product edit',
+        reorder_threshold: reorder_threshold !== undefined ? Number(reorder_threshold) : undefined,
+      }, null);
+    } catch (err) {
+      console.error('Failed to update inventory during product edit', err);
+    }
+  }
+
+  return updatedProduct;
 }
