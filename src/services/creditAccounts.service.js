@@ -71,7 +71,7 @@ export async function create(db, body, actorId) {
 export async function updateLimit(db, customerId, body, actorId) {
   const account = await repo.findByCustomer(db, customerId);
   if (!account) throw Err.notFound('Credit account');
-  const a = await repo.update(db, customerId, { ...body, updated_by: actorId });
+  const a = await repo.update(db, customerId, body);
   
   // Fetch invoices for getByCustomer calculations
   return getByCustomer(db, customerId);
