@@ -41,7 +41,26 @@ export async function findAll(db, query) {
   // Merge email from auth.users
   const rows = data || [];
   const emailMap = await fetchEmailsForIds(rows.map(r => r.id));
-  const enriched = rows.map(r => ({ ...r, email: emailMap.get(r.id) ?? null }));
+  
+  // Fetch customer_count and open_tickets for each employee if they are CREM
+  const enriched = await Promise.all(rows.map(async r => {
+    let customer_count = 0;
+    let open_tickets = 0;
+    if (r.role === 'CREM') {
+      const [{ count: cCount }, { count: tCount }] = await Promise.all([
+        db.from('customer_profiles').select('*', { count: 'exact', head: true }).eq('assigned_crem_id', r.id),
+        db.from('tickets').select('*', { count: 'exact', head: true }).eq('assigned_crem_id', r.id).in('status', ['OPEN', 'IN_PROGRESS', 'ESCALATED'])
+      ]);
+      customer_count = cCount || 0;
+      open_tickets = tCount || 0;
+    }
+    return { 
+      ...r, 
+      email: emailMap.get(r.id) ?? null,
+      customer_count,
+      open_tickets
+    };
+  }));
 
   return { data: enriched, count };
 }
