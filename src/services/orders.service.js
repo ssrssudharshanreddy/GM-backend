@@ -23,12 +23,42 @@ export async function getOrder(db, id) {
 }
 
 export async function placeOrder(db, body, customerId) {
-  return repo.create(db, {
+  const order = await repo.create(db, {
     p_customer_id:         customerId,
     p_delivery_address:    body.delivery_address,
     p_items:               body.items,
     p_special_instructions: body.special_instructions ?? null,
   });
+
+  const { data: customer } = await db.from('customer_profiles').select('assigned_crem_id').eq('id', customerId).single();
+
+  const notifyPayload = (role) => ({
+    type: 'ORDER_ALERT',
+    title: 'New Order Received',
+    body: `A new order has been placed by a customer.`,
+    entity_type: 'order',
+    entity_id: order.id,
+    action_url: `/${role.toLowerCase()}/orders/${order.id}`
+  });
+
+  await dispatchToRole('CEO', notifyPayload('CEO'));
+  await dispatchToRole('CRE', notifyPayload('CRE'));
+  await dispatchToRole('WE', notifyPayload('WE'));
+
+  if (customer?.assigned_crem_id) {
+    await dispatch({
+      recipient_id: customer.assigned_crem_id,
+      recipient_role: 'CREM',
+      type: 'ORDER_ALERT',
+      title: 'New Order from Assigned Customer',
+      body: `One of your assigned customers has placed a new order.`,
+      entity_type: 'order',
+      entity_id: order.id,
+      action_url: `/crem/orders/${order.id}`
+    });
+  }
+
+  return order;
 }
 
 export async function updateOrderStatus(db, id, body, actorId, actorRole) {

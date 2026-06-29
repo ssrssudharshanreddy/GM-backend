@@ -29,15 +29,33 @@ export async function createReturn(db, payload, customerId) {
   });
   if (error) throw Err.fromSupabase(error);
   
-  dispatchToRole({
-    recipient_role: 'WE',
+  const { data: customer } = await db.from('customer_profiles').select('assigned_crem_id').eq('id', customerId).single();
+
+  const notifyPayload = (role) => ({
     type: 'RETURN_UPDATE',
     title: 'New Return Request',
     body: `A new return request has been submitted.`,
     entity_type: 'return',
     entity_id: ret.id,
-    action_url: `/we/returns/${ret.id}`
+    action_url: `/${role.toLowerCase()}/returns/${ret.id}`
   });
+
+  await dispatchToRole('WE', notifyPayload('WE'));
+  await dispatchToRole('CEO', notifyPayload('CEO'));
+  await dispatchToRole('CRE', notifyPayload('CRE'));
+
+  if (customer?.assigned_crem_id) {
+    await dispatch({
+      recipient_id: customer.assigned_crem_id,
+      recipient_role: 'CREM',
+      type: 'RETURN_UPDATE',
+      title: 'New Return Request from Assigned Customer',
+      body: `One of your assigned customers has submitted a return request.`,
+      entity_type: 'return',
+      entity_id: ret.id,
+      action_url: `/crem/returns/${ret.id}`
+    });
+  }
 
   return ret;
 }
