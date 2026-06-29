@@ -17,7 +17,13 @@ export async function getReturn(db, id) {
   if (!r) throw Err.notFound('Return');
   
   if (r.status === 'PICKUP_SCHEDULED' || r.status === 'OUT_FOR_PICKUP') {
-    const pinData = await returnPinsRepo.findActiveByReturn(db, id);
+    let pinData = await returnPinsRepo.findActiveByReturn(db, id);
+    
+    // Self-healing: Generate the PIN if it's missing (e.g. for returns scheduled before the fix)
+    if (!pinData) {
+      pinData = await returnPinsRepo.generate(db, id, null);
+    }
+    
     if (pinData) r.active_pin = pinData.pin_hash;
   }
   
