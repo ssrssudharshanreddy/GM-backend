@@ -18,7 +18,7 @@ export async function getReturn(db, id) {
   
   if (r.status === 'PICKUP_SCHEDULED' || r.status === 'OUT_FOR_PICKUP') {
     const pinData = await returnPinsRepo.findActiveByReturn(db, id);
-    if (pinData) r.active_pin = pinData.plain_pin;
+    if (pinData) r.active_pin = pinData.pin_hash;
   }
   
   return r;
