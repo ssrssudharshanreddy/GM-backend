@@ -21,7 +21,7 @@ export async function getReturn(db, id) {
     
     // Self-healing: Generate the PIN if it's missing (e.g. for returns scheduled before the fix)
     if (!pinData) {
-      pinData = await returnPinsRepo.generate(db, id, null);
+      pinData = await returnPinsRepo.generate(adminClient, id, null);
     }
     
     if (pinData) r.active_pin = pinData.pin_hash;
@@ -117,7 +117,7 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
 
   // Generate PIN when scheduled for pickup
   if (body.status === 'PICKUP_SCHEDULED' && ret.status !== 'PICKUP_SCHEDULED') {
-    await returnPinsRepo.generate(db, id, actorId);
+    await returnPinsRepo.generate(adminClient, id, actorId);
   }
 
   if (body.status && body.status !== ret.status) {
@@ -163,7 +163,7 @@ export async function collectReturn(db, returnId, body, wsId) {
   }
   
   // Verify PIN
-  await returnPinsRepo.verify(db, returnId, body.pin, wsId, body.latitude, body.longitude);
+  await returnPinsRepo.verify(adminClient, returnId, body.pin, wsId, body.latitude, body.longitude);
   
   dispatch({
     recipient_id: ret.customer_id,
