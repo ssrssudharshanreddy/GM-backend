@@ -15,6 +15,10 @@ export async function markAllRead(req, res) {
   await service.markAllRead(req.db, req.user.id);
   sendNoContent(res);
 }
+export async function deleteNotification(req, res) {
+  await service.deleteNotification(req.db, req.params.id, req.user.id);
+  sendNoContent(res);
+}
 export async function getPreferences(req, res) {
   sendSuccess(res, await service.getPreferences(req.db, req.user.id));
 }

@@ -18,6 +18,7 @@ router.get( '/',               validateQuery(listSchema), asyncHandler(ctrl.list
 router.get( '/unread-count',   asyncHandler(ctrl.unreadCount));
 router.post('/mark-all-read',  asyncHandler(ctrl.markAllRead));
 router.patch('/:id/read',      validateParams(idParamSchema), asyncHandler(ctrl.markRead));
+router.delete('/:id',          validateParams(idParamSchema), asyncHandler(ctrl.deleteNotification));
 router.get( '/preferences',    asyncHandler(ctrl.getPreferences));
 router.put( '/preferences',    asyncHandler(ctrl.updatePreferences));
 

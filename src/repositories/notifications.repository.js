@@ -29,7 +29,7 @@ export async function countUnread(db, recipientId) {
 export async function markRead(db, id, recipientId) {
   const { data, error } = await db
     .from('notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
+    .update({ is_read: true })
     .eq('id', id)
     .eq('recipient_id', recipientId)
     .select()
@@ -41,9 +41,18 @@ export async function markRead(db, id, recipientId) {
 export async function markAllRead(db, recipientId) {
   const { error } = await db
     .from('notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
+    .update({ is_read: true })
     .eq('recipient_id', recipientId)
     .eq('is_read', false);
+  if (error) throw Err.fromSupabase(error);
+}
+
+export async function deleteNotification(db, id, recipientId) {
+  const { error } = await db
+    .from('notifications')
+    .delete()
+    .eq('id', id)
+    .eq('recipient_id', recipientId);
   if (error) throw Err.fromSupabase(error);
 }
 

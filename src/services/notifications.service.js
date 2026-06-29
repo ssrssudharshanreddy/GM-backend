@@ -19,6 +19,10 @@ export async function markAllRead(db, recipientId) {
   await repo.markAllRead(db, recipientId);
 }
 
+export async function deleteNotification(db, notificationId, recipientId) {
+  await repo.deleteNotification(db, notificationId, recipientId);
+}
+
 export async function getPreferences(db, userId) {
   return repo.getPreferences(db, userId);
 }
