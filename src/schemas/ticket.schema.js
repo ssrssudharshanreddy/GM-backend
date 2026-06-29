@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 const TICKET_CATEGORIES = [
-  'ORDER_ISSUE', 'PAYMENT_ISSUE', 'RETURN_ISSUE',
-  'DELIVERY_ISSUE', 'PRODUCT_QUALITY', 'ACCOUNT_ISSUE', 'OTHER',
+  'ORDER', 'DELIVERY', 'PRODUCT', 'PAYMENT', 'ACCOUNT_ISSUES'
 ];
 
 export const createTicketSchema = z.object({
