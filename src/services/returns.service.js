@@ -15,6 +15,12 @@ export async function listReturns(db, query) {
 export async function getReturn(db, id) {
   const r = await repo.findById(db, id);
   if (!r) throw Err.notFound('Return');
+  
+  if (r.status === 'PICKUP_SCHEDULED' || r.status === 'OUT_FOR_PICKUP') {
+    const pinData = await returnPinsRepo.findActiveByReturn(db, id);
+    if (pinData) r.active_pin = pinData.plain_pin;
+  }
+  
   return r;
 }
 
@@ -101,6 +107,11 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
     updated = await repo.findById(db, id);
   } else {
     updated = await repo.updateStatus(db, id, updatePayload);
+  }
+
+  // Generate PIN when scheduled for pickup
+  if (body.status === 'PICKUP_SCHEDULED' && ret.status !== 'PICKUP_SCHEDULED') {
+    await returnPinsRepo.generate(db, id, actorId);
   }
 
   if (body.status && body.status !== ret.status) {
