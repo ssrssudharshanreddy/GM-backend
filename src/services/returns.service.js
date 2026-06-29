@@ -170,13 +170,13 @@ export async function uploadCustomerProofs(db, returnId, files) {
   for (const file of files) {
     const path = `returns/${returnId}/${Date.now()}_${file.originalname}`;
     const { error: uploadError } = await adminClient.storage
-      .from(env.SUPABASE_STORAGE_BUCKET_RETURN)
+      .from(env.SUPABASE_STORAGE_BUCKET_RETURNS)
       .upload(path, file.buffer, { contentType: file.mimetype });
       
     if (uploadError) throw Err.internal('File upload failed');
     
     const { data: { publicUrl } } = adminClient.storage
-      .from(env.SUPABASE_STORAGE_BUCKET_RETURN)
+      .from(env.SUPABASE_STORAGE_BUCKET_RETURNS)
       .getPublicUrl(path);
       
     await repo.addProofUrl(db, returnId, publicUrl);
