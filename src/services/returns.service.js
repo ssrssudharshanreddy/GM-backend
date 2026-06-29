@@ -103,14 +103,57 @@ export async function updateReturnStatus(db, id, body, actorId, actorRole) {
   if (body.status === 'RETURN_COMPLETED') {
     // Generate a credit note number like CN-{Random5}
     const cnNumber = `CN-${Math.floor(10000 + Math.random() * 90000)}`;
-    const { data: rpcData, error: rpcErr } = await db.rpc('process_return_refund', {
-      p_return_id: id,
-      p_credit_note_number: cnNumber
-    });
-    if (rpcErr) throw Err.fromSupabase(rpcErr);
     
-    // After RPC, fetch the updated return to return to client
-    updated = await repo.findById(db, id);
+    // 1. Calculate total refund
+    const { data: riData } = await db.from('return_items').select('quantity, order_item_id').eq('return_id', id);
+    let totalRefund = 0;
+    if (riData && riData.length > 0) {
+      const orderItemIds = riData.map(r => r.order_item_id);
+      const { data: oiData } = await db.from('order_items').select('id, unit_price').in('id', orderItemIds);
+      if (oiData) {
+        for (const item of riData) {
+          const orderItem = oiData.find(o => o.id === item.order_item_id);
+          if (orderItem) {
+            totalRefund += item.quantity * Number(orderItem.unit_price);
+          }
+        }
+      }
+    }
+
+    // 2. Create credit note if > 0
+    if (totalRefund > 0) {
+      const { data: cn, error: cnErr } = await adminClient.from('credit_notes').insert({
+        credit_note_number: cnNumber,
+        customer_id: ret.customer_id,
+        return_id: id,
+        amount: totalRefund,
+        applied_amount: 0,
+        reason: 'Refund for Return ' + ret.return_number,
+        created_by: actorId
+      }).select().single();
+      if (cnErr) throw Err.fromSupabase(cnErr);
+
+      // 3. Update customer's available credit
+      const { data: caData } = await adminClient.from('credit_accounts').select('id, available_credit').eq('customer_id', ret.customer_id).single();
+      if (caData) {
+        const newAvailable = Number(caData.available_credit) + totalRefund;
+        await adminClient.from('credit_accounts').update({ available_credit: newAvailable, updated_at: new Date().toISOString() }).eq('id', caData.id);
+        
+        // 4. Log credit history
+        await adminClient.from('credit_history').insert({
+          account_id: caData.id,
+          transaction_type: 'CREDIT_NOTE',
+          amount: totalRefund,
+          running_balance: newAvailable,
+          reference_id: cn.id,
+          reference_type: 'credit_note',
+          notes: 'Refund for Return ' + ret.return_number
+        });
+      }
+    }
+
+    // 5. Update return status
+    updated = await repo.updateStatus(adminClient, id, { status: 'RETURN_COMPLETED' });
   } else {
     updated = await repo.updateStatus(db, id, updatePayload);
   }
